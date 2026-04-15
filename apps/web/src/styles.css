@@ -1,16 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Public+Sans:wght@300;400;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Georgia, "Times New Roman", serif;
-  color: #3c2f2f;
-  background: #f3efe7;
+  font-family: "Public Sans", sans-serif;
+  color: #2d3435;
+  background: #f9f9f9;
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  font-family: "Public Sans", sans-serif;
 }
 
 a {
@@ -25,4 +29,10 @@ button {
 
 * {
   box-sizing: border-box;
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  line-height: 1;
 }

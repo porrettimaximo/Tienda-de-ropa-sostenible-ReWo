@@ -2,8 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.schemas import HealthResponse
-from app.services.supabase_client import get_supabase_client
+from app.routers.health import router as health_router
+from app.routers.loyalty import router as loyalty_router
+from app.routers.products import router as products_router
+from app.routers.reports import router as reports_router
+from app.schemas import RootResponse
 
 app = FastAPI(
     title=settings.app_name,
@@ -20,16 +23,15 @@ app.add_middleware(
 )
 
 
-@app.get("/", tags=["root"])
-def root():
-    return {"message": "ReWo API operativa"}
-
-
-@app.get("/health", response_model=HealthResponse, tags=["health"])
-def health_check() -> HealthResponse:
-    supabase_client = get_supabase_client()
-    return HealthResponse(
-        status="ok",
-        environment=settings.env,
-        supabase_configured=supabase_client is not None
+@app.get("/", response_model=RootResponse, tags=["root"])
+def root() -> RootResponse:
+    return RootResponse(
+        message="ReWo API operativa",
+        version="0.1.0",
+        modules=["products", "loyalty", "reports", "health"],
     )
+
+app.include_router(health_router)
+app.include_router(products_router)
+app.include_router(loyalty_router)
+app.include_router(reports_router)

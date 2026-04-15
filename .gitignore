@@ -8,6 +8,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .mypy_cache/
+.idea/
+.cache/
 .env
 .env.local
 .env.*.local
@@ -17,3 +19,4 @@ coverage/
 Thumbs.db
 *.log
 package-lock.json
+*.tsbuildinfo

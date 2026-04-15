@@ -41,8 +41,8 @@
 
 - `GET /health`
 - `GET /products`
-- `GET /products/:id`
-- `GET /products/:id/variants`
+- `GET /products/{slug}`
+- `GET /products/{slug}/variants`
 - `POST /auth/login`
 - `GET /auth/me`
 - `GET /admin/products`
@@ -74,3 +74,10 @@ Esta combinacion equilibra velocidad de desarrollo, buena experiencia de usuario
 - Programa de puntos
 - Gestion de proveedores eticos
 - Reporte de ventas por talla y color
+
+## Estado actual de implementacion
+
+- Frontend base en `React + Vite + Tailwind`
+- Backend base en `FastAPI`
+- Endpoints demo listos para productos, loyalty y reportes
+- Esquema SQL inicial listo para ejecutar en Supabase
