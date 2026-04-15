@@ -27,6 +27,7 @@ supplier_biotech = Supplier(
     ethical_certification="Fibras recicladas de bajo impacto",
     country="Mexico",
 )
+SUPPLIERS: list[Supplier] = [supplier_oaxaca, supplier_biotech]
 
 PRODUCTS: list[ProductDetail] = [
     ProductDetail(
@@ -319,9 +320,10 @@ SALES_REPORT: list[SalesByVariantReport] = [
 ]
 
 
-def get_product_summaries() -> list[ProductSummary]:
+def get_product_summaries(products: list[ProductDetail] | None = None) -> list[ProductSummary]:
+    source_products = products or PRODUCTS
     summaries: list[ProductSummary] = []
-    for product in PRODUCTS:
+    for product in source_products:
         colors = sorted({variant.color for variant in product.variants})
         sizes = sorted({variant.size for variant in product.variants})
         price_from = min(variant.price for variant in product.variants)

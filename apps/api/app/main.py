@@ -2,10 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.routers.admin import router as admin_router
+from app.routers.auth import router as auth_router
 from app.routers.health import router as health_router
 from app.routers.loyalty import router as loyalty_router
 from app.routers.products import router as products_router
 from app.routers.reports import router as reports_router
+from app.routers.sales import router as sales_router
 from app.schemas import RootResponse
 
 app = FastAPI(
@@ -28,10 +31,13 @@ def root() -> RootResponse:
     return RootResponse(
         message="ReWo API operativa",
         version="0.1.0",
-        modules=["products", "loyalty", "reports", "health"],
+        modules=["auth", "products", "sales", "admin", "loyalty", "reports", "health"],
     )
 
+app.include_router(auth_router)
 app.include_router(health_router)
 app.include_router(products_router)
+app.include_router(sales_router)
+app.include_router(admin_router)
 app.include_router(loyalty_router)
 app.include_router(reports_router)

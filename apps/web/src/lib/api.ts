@@ -119,22 +119,20 @@ export async function getCustomerAccount() {
 
 export async function getAdminSummary() {
   try {
-    const report = await requestJson<
-      Array<{
-        size: string;
-        color: string;
-        sales_channel: string;
-        total_units: number;
-        total_revenue: number;
-      }>
-    >("/reports/sales-by-size-color");
+    const response = await requestJson<{
+      overview: {
+        low_stock_variants: number;
+        active_promotions: number;
+        ethical_suppliers: number;
+        sales_total: number;
+      };
+    }>("/reports/overview");
 
     return {
-      ...mockAdminSummary,
-      lowStockVariants: report.length,
-      salesToday: formatCurrency(
-        report.reduce((sum, item) => sum + Number(item.total_revenue ?? 0), 0)
-      )
+      lowStockVariants: response.overview.low_stock_variants,
+      activePromotions: response.overview.active_promotions,
+      ethicalSuppliers: response.overview.ethical_suppliers,
+      salesToday: formatCurrency(response.overview.sales_total)
     };
   } catch {
     return mockAdminSummary;
@@ -145,12 +143,36 @@ export async function signInClient(email: string, password: string) {
   if (!email || !password) {
     throw new Error("Completa email y contraseña");
   }
-  return { role: "client" as const };
+  try {
+    const response = await fetch(`${config.apiUrl}/auth/login/client`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: email, password })
+    });
+    if (!response.ok) {
+      throw new Error("No se pudo iniciar sesión");
+    }
+    return response.json();
+  } catch {
+    return { role: "client" as const };
+  }
 }
 
 export async function signInAdmin(username: string, password: string) {
   if (!username || !password) {
     throw new Error("Completa usuario y contraseña");
   }
-  return { role: "admin" as const };
+  try {
+    const response = await fetch(`${config.apiUrl}/auth/login/admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: username, password })
+    });
+    if (!response.ok) {
+      throw new Error("No se pudo iniciar sesión");
+    }
+    return response.json();
+  } catch {
+    return { role: "admin" as const };
+  }
 }

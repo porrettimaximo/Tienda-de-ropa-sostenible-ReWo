@@ -1,27 +1,21 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from app.data import PRODUCTS, get_product_summaries
 from app.domain import ProductDetail, ProductSummary, ProductVariant
+from app.services.store_service import store
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 
 @router.get("", response_model=list[ProductSummary])
 def list_products() -> list[ProductSummary]:
-    return get_product_summaries()
+    return store.list_products()
 
 
 @router.get("/{product_slug}", response_model=ProductDetail)
 def get_product(product_slug: str) -> ProductDetail:
-    for product in PRODUCTS:
-        if product.slug == product_slug:
-            return product
-    raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return store.get_product(product_slug)
 
 
 @router.get("/{product_slug}/variants", response_model=list[ProductVariant])
 def get_product_variants(product_slug: str) -> list[ProductVariant]:
-    for product in PRODUCTS:
-        if product.slug == product_slug:
-            return product.variants
-    raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return store.get_product(product_slug).variants

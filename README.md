@@ -69,6 +69,20 @@ Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack
 - Mi cuenta y panel admin preparados para consumir endpoints reales
 - Fallback local activo mientras se configura backend/Supabase
 
+## Desarrollo local
+
+Backend:
+
+```powershell
+npm run dev:api
+```
+
+Frontend:
+
+```powershell
+npm run dev:web
+```
+
 ## Funcionalidad extra sugerida
 
 `Modulo de impacto sostenible`
