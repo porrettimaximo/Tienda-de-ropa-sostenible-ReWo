@@ -3,7 +3,8 @@ import {
   accountSummary as mockAccountSummary,
   adminSummary as mockAdminSummary,
   getProductBySlug,
-  products as mockProducts
+  products as mockProducts,
+  type Product as MockProduct
 } from "../data/store";
 
 type ApiProductSummary = {
@@ -22,6 +23,17 @@ type ApiProductDetail = {
   name: string;
   slug: string;
   description: string;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  supplier?: {
+    id: string;
+    name: string;
+    ethical_certification?: string | null;
+    country?: string | null;
+  } | null;
   sustainability_label?: string | null;
   sustainability_score?: number | null;
   variants: Array<{
@@ -34,8 +46,94 @@ type ApiProductDetail = {
   }>;
 };
 
-async function requestJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${config.apiUrl}${path}`);
+type ApiAccountSummary = {
+  id: string;
+  full_name: string;
+  email?: string | null;
+  loyalty_points: number;
+};
+
+type ApiOverview = {
+  overview: {
+    low_stock_variants: number;
+    active_promotions: number;
+    ethical_suppliers: number;
+    sales_total: number;
+  };
+};
+
+type ApiCheckoutResponse = {
+  order: {
+    id: string;
+    sales_channel: "online" | "store";
+    customer_id?: string | null;
+    customer_name?: string | null;
+    subtotal: number;
+    total: number;
+    loyalty_points_earned: number;
+    payment_method?: string | null;
+    notes?: string | null;
+    items: Array<{
+      product_slug: string;
+      product_name: string;
+      variant_id: string;
+      size: string;
+      color: string;
+      quantity: number;
+      unit_price: number;
+      line_total: number;
+    }>;
+  };
+};
+
+export type CatalogVariant = {
+  id: string;
+  sku: string;
+  size: string;
+  color: string;
+  stock: number;
+  price: number;
+  priceLabel: string;
+};
+
+export type CatalogProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle: string;
+  priceLabel: string;
+  numericPrice: number;
+  image: string;
+  description: string;
+  colors: string[];
+  sizes: string[];
+  sustainability: string;
+  composition: string;
+  category: string;
+  supplierName?: string;
+  sustainabilityScore?: number | null;
+  variants: CatalogVariant[];
+};
+
+export type CheckoutItemInput = {
+  productSlug: string;
+  variantId: string;
+  quantity: number;
+};
+
+export type CheckoutInput = {
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  paymentMethod?: string;
+  notes?: string;
+  items: CheckoutItemInput[];
+};
+
+export type CheckoutResult = ApiCheckoutResponse["order"];
+
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${config.apiUrl}${path}`, init);
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
   }
@@ -46,66 +144,130 @@ function formatCurrency(value: number) {
   return `$${value.toLocaleString("es-MX")} MXN`;
 }
 
+function buildMockVariants(product: MockProduct): CatalogVariant[] {
+  const colors = product.colors.length > 0 ? product.colors : ["Base"];
+  const sizes = product.sizes.length > 0 ? product.sizes : ["Unica"];
+  const variants: CatalogVariant[] = [];
+
+  sizes.forEach((size, sizeIndex) => {
+    const color = colors[sizeIndex % colors.length];
+    variants.push({
+      id: `${product.slug}-${size.toLowerCase()}-${color.toLowerCase().replace(/\s+/g, "-")}`,
+      sku: `${product.slug.toUpperCase()}-${size.toUpperCase()}`,
+      size,
+      color,
+      stock: Math.max(2, 10 - sizeIndex * 2),
+      price: product.numericPrice,
+      priceLabel: product.price
+    });
+  });
+
+  return variants;
+}
+
+function getFallbackCatalogProduct(product: MockProduct): CatalogProduct {
+  return {
+    id: product.slug,
+    slug: product.slug,
+    name: product.name,
+    subtitle: product.subtitle,
+    priceLabel: product.price,
+    numericPrice: product.numericPrice,
+    image: product.image,
+    description: product.description,
+    colors: product.colors,
+    sizes: product.sizes,
+    sustainability: product.sustainability,
+    composition: product.composition,
+    category: product.featured ? "Capsula" : "Coleccion permanente",
+    variants: buildMockVariants(product)
+  };
+}
+
+function getFallbackBySlug(slug: string) {
+  const product = getProductBySlug(slug);
+  return product ? getFallbackCatalogProduct(product) : undefined;
+}
+
+function mapSummary(product: ApiProductSummary): CatalogProduct {
+  const fallback = getFallbackBySlug(product.slug);
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    subtitle: product.sustainability_label ?? product.category,
+    priceLabel: formatCurrency(product.price_from),
+    numericPrice: product.price_from,
+    image: fallback?.image ?? mockProducts[0].image,
+    description:
+      fallback?.description ??
+      "Pieza curada con materiales conscientes y trazabilidad editorial.",
+    colors: product.available_colors,
+    sizes: product.available_sizes,
+    sustainability: product.sustainability_label ?? "Impacto consciente",
+    composition: fallback?.composition ?? "Composicion por definir",
+    category: product.category,
+    variants: []
+  };
+}
+
+function mapDetail(product: ApiProductDetail): CatalogProduct {
+  const fallback = getFallbackBySlug(product.slug);
+  const variants = product.variants.map((variant) => ({
+    id: variant.id,
+    sku: variant.sku,
+    size: variant.size,
+    color: variant.color,
+    stock: variant.stock,
+    price: variant.price,
+    priceLabel: formatCurrency(variant.price)
+  }));
+  const price = Math.min(...variants.map((variant) => variant.price));
+
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    subtitle: fallback?.subtitle ?? product.sustainability_label ?? product.category.name,
+    priceLabel: formatCurrency(price),
+    numericPrice: price,
+    image: fallback?.image ?? mockProducts[0].image,
+    description: product.description,
+    colors: [...new Set(variants.map((variant) => variant.color))],
+    sizes: [...new Set(variants.map((variant) => variant.size))],
+    sustainability:
+      fallback?.sustainability ??
+      product.sustainability_label ??
+      `Score ${product.sustainability_score ?? 0}`,
+    composition: fallback?.composition ?? "Composicion por definir",
+    category: product.category.name,
+    supplierName: product.supplier?.name ?? undefined,
+    sustainabilityScore: product.sustainability_score,
+    variants
+  };
+}
+
 export async function getCatalogProducts() {
   try {
     const data = await requestJson<ApiProductSummary[]>("/products");
-    return data.map((product) => ({
-      slug: product.slug,
-      name: product.name,
-      subtitle: product.sustainability_label ?? product.category,
-      price: formatCurrency(product.price_from),
-      numericPrice: product.price_from,
-      image: getProductBySlug(product.slug)?.image ?? mockProducts[0].image,
-      description:
-        getProductBySlug(product.slug)?.description ??
-        "Pieza curada con materiales conscientes y trazabilidad editorial.",
-      colors: product.available_colors,
-      sizes: product.available_sizes,
-      sustainability: product.sustainability_label ?? "Impacto consciente",
-      composition: getProductBySlug(product.slug)?.composition ?? "Composición por definir"
-    }));
+    return data.map(mapSummary);
   } catch {
-    return mockProducts;
+    return mockProducts.map(getFallbackCatalogProduct);
   }
 }
 
 export async function getCatalogProduct(slug: string) {
   try {
     const data = await requestJson<ApiProductDetail>(`/products/${slug}`);
-    const fallback = getProductBySlug(slug);
-    const prices = data.variants.map((variant) => variant.price);
-    const firstPrice = prices[0] ?? fallback?.numericPrice ?? 0;
-
-    return {
-      slug: data.slug,
-      name: data.name,
-      subtitle: fallback?.subtitle ?? data.sustainability_label ?? "Colección permanente",
-      price: formatCurrency(firstPrice),
-      numericPrice: firstPrice,
-      image: fallback?.image ?? mockProducts[0].image,
-      description: data.description,
-      colors: [...new Set(data.variants.map((variant) => variant.color))],
-      sizes: [...new Set(data.variants.map((variant) => variant.size))],
-      sustainability:
-        fallback?.sustainability ??
-        data.sustainability_label ??
-        `Score ${data.sustainability_score ?? 0}`,
-      composition: fallback?.composition ?? "Composición por definir"
-    };
+    return mapDetail(data);
   } catch {
-    return getProductBySlug(slug);
+    return getFallbackBySlug(slug);
   }
 }
 
 export async function getCustomerAccount() {
   try {
-    const data = await requestJson<{
-      id: string;
-      full_name: string;
-      email?: string | null;
-      loyalty_points: number;
-    }>("/loyalty/customers/cus-maria-fernandez");
-
+    const data = await requestJson<ApiAccountSummary>("/loyalty/customers/cus-maria-fernandez");
     return {
       ...mockAccountSummary,
       name: data.full_name,
@@ -119,15 +281,7 @@ export async function getCustomerAccount() {
 
 export async function getAdminSummary() {
   try {
-    const response = await requestJson<{
-      overview: {
-        low_stock_variants: number;
-        active_promotions: number;
-        ethical_suppliers: number;
-        sales_total: number;
-      };
-    }>("/reports/overview");
-
+    const response = await requestJson<ApiOverview>("/reports/overview");
     return {
       lowStockVariants: response.overview.low_stock_variants,
       activePromotions: response.overview.active_promotions,
@@ -141,18 +295,14 @@ export async function getAdminSummary() {
 
 export async function signInClient(email: string, password: string) {
   if (!email || !password) {
-    throw new Error("Completa email y contraseña");
+    throw new Error("Completa email y contrasena");
   }
   try {
-    const response = await fetch(`${config.apiUrl}/auth/login/client`, {
+    return await requestJson<{ role: "client"; access_token?: string }>("/auth/login/client", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: email, password })
     });
-    if (!response.ok) {
-      throw new Error("No se pudo iniciar sesión");
-    }
-    return response.json();
   } catch {
     return { role: "client" as const };
   }
@@ -160,19 +310,36 @@ export async function signInClient(email: string, password: string) {
 
 export async function signInAdmin(username: string, password: string) {
   if (!username || !password) {
-    throw new Error("Completa usuario y contraseña");
+    throw new Error("Completa usuario y contrasena");
   }
   try {
-    const response = await fetch(`${config.apiUrl}/auth/login/admin`, {
+    return await requestJson<{ role: "admin"; access_token?: string }>("/auth/login/admin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: username, password })
     });
-    if (!response.ok) {
-      throw new Error("No se pudo iniciar sesión");
-    }
-    return response.json();
   } catch {
     return { role: "admin" as const };
   }
+}
+
+export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutResult> {
+  const response = await requestJson<ApiCheckoutResponse>("/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      customer_id: payload.customerId,
+      customer_name: payload.customerName,
+      customer_email: payload.customerEmail,
+      payment_method: payload.paymentMethod,
+      notes: payload.notes,
+      items: payload.items.map((item) => ({
+        product_slug: item.productSlug,
+        variant_id: item.variantId,
+        quantity: item.quantity
+      }))
+    })
+  });
+
+  return response.order;
 }

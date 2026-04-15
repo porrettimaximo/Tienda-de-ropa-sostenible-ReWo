@@ -24,7 +24,8 @@
 1. Crear un proyecto nuevo en Supabase.
 2. Abrir el SQL Editor.
 3. Ejecutar el archivo `supabase/migrations/001_initial_schema.sql`.
-4. Verificar que se creen tablas, indices y la vista `sales_by_size_color`.
+4. Ejecutar el archivo `supabase/seed.sql`.
+5. Verificar que se creen tablas, indices y la vista `sales_by_size_color`.
 
 ## Variables sugeridas frontend
 

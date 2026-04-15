@@ -73,7 +73,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ## Activar Supabase real
 
 1. Ejecutar el SQL de `supabase/migrations/001_initial_schema.sql`
-2. Cargar datos iniciales en categorias, suppliers, products, product_variants y customers
+2. Ejecutar `supabase/seed.sql`
 3. Completar estas variables en `apps/api/.env`
 
 - `SUPABASE_URL`

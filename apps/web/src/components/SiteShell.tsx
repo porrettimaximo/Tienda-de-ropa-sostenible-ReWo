@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 
+import { useCart } from "./CartContext";
+
 type SiteShellProps = {
   children: ReactNode;
   activeNav?: "collections" | "materials" | "manifesto";
@@ -13,6 +15,8 @@ const navItems: Array<{ label: string; to: string; key: SiteShellProps["activeNa
 ];
 
 export function SiteShell({ children, activeNav = "collections" }: SiteShellProps) {
+  const { itemCount } = useCart();
+
   return (
     <div className="bg-surface text-on-surface">
       <nav className="sticky top-0 z-50 bg-[#f2f4f4]/90 backdrop-blur-md">
@@ -52,8 +56,13 @@ export function SiteShell({ children, activeNav = "collections" }: SiteShellProp
           </div>
 
           <div className="flex items-center gap-6">
-            <Link className="material-symbols-outlined text-inverse-surface" to="/cart">
-              shopping_bag
+            <Link className="relative text-inverse-surface" to="/cart">
+              <span className="material-symbols-outlined">shopping_bag</span>
+              {itemCount > 0 ? (
+                <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-inverse-surface px-1 text-[0.6rem] font-black text-surface">
+                  {itemCount}
+                </span>
+              ) : null}
             </Link>
             <Link className="material-symbols-outlined text-inverse-surface" to="/login">
               person
