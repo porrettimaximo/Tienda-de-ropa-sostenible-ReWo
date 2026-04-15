@@ -4,7 +4,8 @@ from app.config import settings
 
 
 def get_supabase_client() -> Client | None:
-    if not settings.supabase_url or not settings.supabase_key:
+    key = settings.supabase_service_role_key or settings.supabase_key
+    if not settings.supabase_url or not key:
         return None
 
-    return create_client(settings.supabase_url, settings.supabase_key)
+    return create_client(settings.supabase_url, key)
