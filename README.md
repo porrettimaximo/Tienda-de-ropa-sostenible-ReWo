@@ -1,0 +1,78 @@
+# ReWo - Tienda de ropa sostenible
+
+Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack liviano, rapido de implementar y facil de desplegar gratis.
+
+## Stack final elegido
+
+- Frontend: `React` + `Vite` + `TypeScript`
+- UI: `Tailwind CSS`
+- Backend API: `Python` + `FastAPI`
+- Base de datos: `Supabase Postgres`
+- Auth: `Supabase Auth`
+- Storage opcional: `Supabase Storage`
+- Deploy:
+  - `web`: `Netlify`
+  - `api`: `Render`
+  - `db/auth/storage`: `Supabase`
+
+## Por que este stack
+
+- `React + Vite` permite construir pantallas rapido y despues replicar visualmente el estilo que definas.
+- `FastAPI` da velocidad de desarrollo, validacion fuerte y documentacion automatica.
+- `Supabase` evita montar auth y base de datos desde cero.
+- `Netlify + Render + Supabase` encaja bien con planes gratuitos y herramientas que ya usas.
+
+## Arquitectura inicial
+
+- `apps/web`: interfaz del ecommerce
+- `apps/api`: API REST y logica del negocio
+- `docs`: requerimientos, checklist, decisiones tecnicas y entregables
+
+## Alcance funcional sugerido para el MVP
+
+- Landing / home
+- Catalogo de productos
+- Detalle de producto con talla y color
+- Carrito
+- Checkout basico
+- Login admin
+- Panel admin simple para productos, variantes y stock
+- Registro de ventas en tienda fisica
+- Promociones basicas y combos
+- Programa de lealtad por puntos
+- Proveedores eticos
+- Reporte de ventas por talla y color
+
+## Funcionalidad extra sugerida
+
+`Modulo de impacto sostenible`
+
+- Mostrar materiales sostenibles por producto
+- Comunicar ahorro o impacto positivo
+- Reforzar la propuesta de valor de la marca
+
+## Entregables exigidos por la prueba
+
+- App funcional y desplegada publicamente
+- Repositorio Git con historial completo
+- `README.md` con arquitectura, setup, endpoints y decisiones tecnicas
+- 2 videos Loom
+- Funcionalidad extra documentada
+
+## Estructura del repo
+
+```text
+.
+|-- apps/
+|   |-- api/
+|   `-- web/
+|-- docs/
+`-- package.json
+```
+
+## Proximo paso recomendado
+
+1. Modelar entidades reales del negocio en Supabase.
+2. Crear la primera pantalla visual.
+3. Replicar ese lenguaje visual en el resto del flujo.
+4. Conectar frontend, backend y Supabase.
