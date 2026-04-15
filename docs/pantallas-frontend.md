@@ -31,6 +31,10 @@ Definir las vistas principales del ecommerce y como se conectan entre si.
   - acceso interno de operacion
 - `Panel admin` `/admin`
   - resumen de stock, promociones, proveedores y reporte rapido
+- `Admin catálogo` `/admin/catalog`
+  - gestion visual de productos, composicion y variantes
+- `Venta tienda física` `/admin/store-sales`
+  - registro visual de ventas de mostrador
 
 ## Principios visuales
 
@@ -53,3 +57,5 @@ Estas pantallas ya estan scaffolded en el frontend con navegacion real:
 - `AccountPage`
 - `AdminLoginPage`
 - `AdminDashboardPage`
+- `AdminCatalogPage`
+- `StoreSalePage`

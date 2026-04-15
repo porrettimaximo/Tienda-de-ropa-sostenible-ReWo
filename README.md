@@ -62,6 +62,13 @@ Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack
 - Login admin
 - Panel admin
 
+## Conexion actual del frontend
+
+- Catalogo y detalle preparados para leer desde API
+- Login cliente y admin con flujo navegable
+- Mi cuenta y panel admin preparados para consumir endpoints reales
+- Fallback local activo mientras se configura backend/Supabase
+
 ## Funcionalidad extra sugerida
 
 `Modulo de impacto sostenible`

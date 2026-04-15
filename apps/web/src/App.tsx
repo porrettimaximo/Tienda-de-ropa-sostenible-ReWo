@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { SiteShell } from "./components/SiteShell";
 import { AccountPage } from "./pages/AccountPage";
+import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { CartPage } from "./pages/CartPage";
@@ -10,6 +11,7 @@ import { CollectionPage } from "./pages/CollectionPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
+import { StoreSalePage } from "./pages/StoreSalePage";
 
 function App() {
   return (
@@ -84,6 +86,22 @@ function App() {
           element={
             <SiteShell activeNav="collections">
               <AdminDashboardPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/catalog"
+          element={
+            <SiteShell activeNav="collections">
+              <AdminCatalogPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/store-sales"
+          element={
+            <SiteShell activeNav="collections">
+              <StoreSalePage />
             </SiteShell>
           }
         />

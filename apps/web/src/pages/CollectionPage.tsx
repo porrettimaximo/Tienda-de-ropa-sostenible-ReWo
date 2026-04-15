@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { products } from "../data/store";
+import { products as fallbackProducts, type Product } from "../data/store";
+import { getCatalogProducts } from "../lib/api";
 
 const filterBlocks = [
   { icon: "eco", label: "Fibras Orgánicas", active: true },
@@ -12,9 +14,29 @@ const filterBlocks = [
 const materialFilters = ["Lino Premium", "Cáñamo Mexicano", "Algodón Orgánico"];
 
 export function CollectionPage() {
+  const [products, setProducts] = useState<Product[]>(fallbackProducts);
+
+  useEffect(() => {
+    let active = true;
+
+    getCatalogProducts().then((data) => {
+      if (active && data.length > 0) {
+        setProducts(data);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const featuredProduct = products[0];
   const topProducts = products.slice(1, 4);
   const bottomProducts = products.slice(4);
+
+  if (!featuredProduct) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">

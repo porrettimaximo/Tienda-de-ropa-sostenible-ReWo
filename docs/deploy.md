@@ -31,3 +31,8 @@
 - `VITE_API_URL`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+
+## Conexion frontend actual
+
+- El frontend ya intenta leer catalogo, detalle, loyalty y resumen admin desde `VITE_API_URL`
+- Si la API no esta disponible, usa fallback local para no romper la navegacion

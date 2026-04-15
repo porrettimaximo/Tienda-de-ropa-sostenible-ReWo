@@ -1,10 +1,29 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { getProductBySlug, products } from "../data/store";
+import { getProductBySlug, products, type Product } from "../data/store";
+import { getCatalogProduct } from "../lib/api";
 
 export function ProductDetailPage() {
   const { slug } = useParams();
-  const product = slug ? getProductBySlug(slug) : undefined;
+  const [product, setProduct] = useState<Product | undefined>(() =>
+    slug ? getProductBySlug(slug) : undefined
+  );
+
+  useEffect(() => {
+    if (!slug) return;
+    let active = true;
+
+    getCatalogProduct(slug).then((data) => {
+      if (active && data) {
+        setProduct(data);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [slug]);
 
   if (!product) {
     return (

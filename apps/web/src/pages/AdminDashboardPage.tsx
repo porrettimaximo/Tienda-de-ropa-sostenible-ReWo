@@ -1,6 +1,26 @@
-import { adminSummary } from "../data/store";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+import { adminSummary as fallbackAdminSummary } from "../data/store";
+import { getAdminSummary } from "../lib/api";
 
 export function AdminDashboardPage() {
+  const [adminSummary, setAdminSummary] = useState(fallbackAdminSummary);
+
+  useEffect(() => {
+    let active = true;
+
+    getAdminSummary().then((data) => {
+      if (active) {
+        setAdminSummary(data);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
       <header className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -40,19 +60,27 @@ export function AdminDashboardPage() {
             Acciones rápidas
           </h2>
           <div className="mt-8 grid gap-4">
-            {[
-              "Crear producto nuevo",
-              "Actualizar variante con stock crítico",
-              "Registrar venta de tienda física",
-              "Publicar combo de temporada"
-            ].map((action) => (
-              <button
-                key={action}
-                className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
-              >
-                {action}
-              </button>
-            ))}
+            <Link
+              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
+              to="/admin/catalog"
+            >
+              Crear producto nuevo
+            </Link>
+            <Link
+              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
+              to="/admin/catalog"
+            >
+              Actualizar variante con stock crítico
+            </Link>
+            <Link
+              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
+              to="/admin/store-sales"
+            >
+              Registrar venta de tienda física
+            </Link>
+            <button className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface">
+              Publicar combo de temporada
+            </button>
           </div>
         </div>
 

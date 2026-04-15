@@ -141,6 +141,15 @@ export const adminSummary = {
   salesToday: "$18,540 MXN"
 };
 
+export const physicalStoreDraft = {
+  storeName: "Flagship Polanco",
+  seller: "Andrea Ruiz",
+  saleChannel: "store",
+  customerName: "Cliente mostrador",
+  paymentMethod: "Tarjeta",
+  loyaltyDocument: "maria@ecowear.mx"
+};
+
 export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug);
 }

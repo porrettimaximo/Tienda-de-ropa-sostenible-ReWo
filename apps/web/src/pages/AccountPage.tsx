@@ -1,8 +1,26 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { accountSummary } from "../data/store";
+import { accountSummary as fallbackAccountSummary } from "../data/store";
+import { getCustomerAccount } from "../lib/api";
 
 export function AccountPage() {
+  const [accountSummary, setAccountSummary] = useState(fallbackAccountSummary);
+
+  useEffect(() => {
+    let active = true;
+
+    getCustomerAccount().then((data) => {
+      if (active) {
+        setAccountSummary(data);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
       <header className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
