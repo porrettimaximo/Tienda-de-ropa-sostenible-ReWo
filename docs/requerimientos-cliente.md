@@ -21,6 +21,18 @@ Tienda de ropa sostenible con operacion mixta:
 - Gestion o registro de proveedores eticos
 - Reporte de ventas por talla y color
 
+## Decisiones de experiencia y contenido ya definidas
+
+Estas decisiones ya quedaron reflejadas en la propuesta visual inicial del frontend y conviene tratarlas como parte del alcance esperado:
+
+- `Promociones y lealtad`:
+  - banner destacado para `Combos de Temporada`
+  - seccion dedicada al `Programa de Lealtad (Puntos Eco)`
+  - objetivo: fomentar retencion y recompra
+- `Transparencia de marca`:
+  - seccion dedicada a `Proveedores Eticos`
+  - objetivo: comunicar el valor sostenible y la trazabilidad de la marca
+
 ## Implicancias tecnicas
 
 ### 1. Catalogo con variantes

@@ -28,6 +28,7 @@
 - [ ] Implementar detalle de producto
 - [ ] Implementar carrito
 - [ ] Implementar checkout basico
+- [ ] Implementar login cliente y mi cuenta
 - [ ] Implementar registro de ventas en tienda fisica
 - [ ] Implementar promociones y combos
 - [ ] Implementar programa de puntos
@@ -44,6 +45,7 @@
 - [ ] Verificar credenciales de acceso
 - [ ] Validar stock por variante en flujos online y fisicos
 - [ ] Validar calculo de promociones y puntos
+- [ ] Validar presencia y claridad del bloque de proveedores eticos
 - [ ] Corregir bugs criticos antes de deploy final
 
 ## 5. Git y documentacion
@@ -54,6 +56,7 @@
 - [ ] Documentar endpoints
 - [ ] Documentar setup local
 - [ ] Documentar decisiones tecnicas
+- [ ] Documentar mapa de pantallas y roles
 - [ ] Documentar funcionalidad extra y valor comercial
 
 ## 6. Entrega final

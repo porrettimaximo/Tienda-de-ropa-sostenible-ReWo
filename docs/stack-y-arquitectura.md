@@ -75,6 +75,14 @@ Esta combinacion equilibra velocidad de desarrollo, buena experiencia de usuario
 - Gestion de proveedores eticos
 - Reporte de ventas por talla y color
 
+## Bloques editoriales ya definidos para frontend
+
+- Banner de `Combos de Temporada`
+- Seccion `Programa de Lealtad / Puntos Eco`
+- Seccion `Proveedores Eticos`
+
+Estos bloques no son decorativos: responden directamente a requerimientos de promociones, lealtad y transparencia.
+
 ## Estado actual de implementacion
 
 - Frontend base en `React + Vite + Tailwind`

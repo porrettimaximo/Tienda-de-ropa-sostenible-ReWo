@@ -1,4 +1,5 @@
-import { Link, NavLink, type ReactNode } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link, NavLink } from "react-router-dom";
 
 type SiteShellProps = {
   children: ReactNode;
@@ -51,8 +52,12 @@ export function SiteShell({ children, activeNav = "collections" }: SiteShellProp
           </div>
 
           <div className="flex items-center gap-6">
-            <button className="material-symbols-outlined text-inverse-surface">shopping_bag</button>
-            <button className="material-symbols-outlined text-inverse-surface">person</button>
+            <Link className="material-symbols-outlined text-inverse-surface" to="/cart">
+              shopping_bag
+            </Link>
+            <Link className="material-symbols-outlined text-inverse-surface" to="/login">
+              person
+            </Link>
           </div>
         </div>
       </nav>

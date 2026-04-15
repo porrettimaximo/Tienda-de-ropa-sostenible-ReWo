@@ -43,6 +43,25 @@ Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack
 - Proveedores eticos
 - Reporte de ventas por talla y color
 
+## Decisiones visuales y de contenido ya incorporadas
+
+- Banner promocional para `Combos de Temporada`
+- Seccion de `Programa de Lealtad` con `Puntos Eco`
+- Seccion de `Proveedores Eticos` enfocada en transparencia de marca
+- Flujo de autenticacion diferenciado para `cliente` y `admin`
+
+## Pantallas ya definidas
+
+- Inicio
+- Coleccion
+- Detalle de producto
+- Bolsa
+- Checkout
+- Login cliente
+- Mi cuenta
+- Login admin
+- Panel admin
+
 ## Funcionalidad extra sugerida
 
 `Modulo de impacto sostenible`
