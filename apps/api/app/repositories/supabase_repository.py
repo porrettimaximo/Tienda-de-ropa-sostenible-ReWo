@@ -314,6 +314,68 @@ class SupabaseRepository:
             for row in orders_rows
         ]
 
+    def get_order(self, order_id: str) -> OrderSummary | None:
+        client = self._client()
+        orders_rows = client.table("orders").select("*").eq("id", order_id).limit(1).execute().data or []
+        if not orders_rows:
+            return None
+        row = orders_rows[0]
+
+        order_items_rows = (
+            client.table("order_items").select("*").eq("order_id", order_id).execute().data or []
+        )
+        products = {product.id: product for product in self.list_product_details()}
+        variants_by_id = {
+            variant.id: variant
+            for product in products.values()
+            for variant in product.variants
+        }
+
+        items: list[OrderItem] = []
+        for item_row in order_items_rows:
+            product = products.get(item_row["product_id"])
+            variant = variants_by_id.get(item_row["variant_id"])
+            if product is None or variant is None:
+                continue
+            items.append(
+                OrderItem(
+                    product_slug=product.slug,
+                    product_name=product.name,
+                    variant_id=variant.id,
+                    size=variant.size,
+                    color=variant.color,
+                    quantity=item_row["quantity"],
+                    unit_price=float(item_row["unit_price"]),
+                    line_total=float(item_row["total_price"]),
+                )
+            )
+
+        customer = self.get_customer(row["customer_id"]) if row.get("customer_id") else None
+        return OrderSummary(
+            id=row["id"],
+            sales_channel=row["sales_channel"],
+            customer_id=customer.id if customer else None,
+            customer_name=customer.full_name if customer else None,
+            created_at=self._parse_ts(row.get("created_at")),
+            subtotal=float(row["subtotal"]),
+            promotion_discount_total=float(row.get("promotion_discount_total") or row.get("discount_total") or 0),
+            loyalty_discount_total=float(row.get("loyalty_discount_total") or 0),
+            discount_total=float(row.get("discount_total") or 0),
+            total=float(row["total"]),
+            promotion_label=row.get("promotion_label")
+            or ("Promo aplicada" if float(row.get("discount_total") or 0) > 0 else None),
+            loyalty_points_earned=row.get("loyalty_points_earned", 0),
+            payment_method=row.get("payment_method"),
+            store_name=row.get("store_name"),
+            seller=row.get("seller"),
+            invoice_required=row.get("invoice_required"),
+            invoice_rfc=row.get("invoice_rfc"),
+            invoice_business_name=row.get("invoice_business_name"),
+            redeemed_points=row.get("redeemed_points") or 0,
+            notes=row.get("notes"),
+            items=items,
+        )
+
     def create_product(self, payload: ProductUpsertRequest) -> ProductDetail:
         client = self._client()
         inserted = (

@@ -15,6 +15,9 @@ class ReportingService:
     def get_customer_orders(self, customer_id: str) -> list[OrderSummary]:
         return self.repository.list_customer_orders(customer_id)
 
+    def get_order(self, order_id: str) -> OrderSummary | None:
+        return self.repository.get_order(order_id)
+
     def update_customer(self, customer_id: str, payload: CustomerUpdateRequest) -> LoyaltyCustomer:
         return self.repository.update_customer(
             customer_id,

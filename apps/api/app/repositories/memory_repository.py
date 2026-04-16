@@ -147,6 +147,12 @@ class MemoryRepository:
         self.get_customer(customer_id)
         return [order for order in self.orders if order.customer_id == customer_id]
 
+    def get_order(self, order_id: str) -> OrderSummary | None:
+        for order in self.orders:
+            if order.id == order_id:
+                return order
+        return None
+
     def create_product(self, payload: ProductUpsertRequest) -> ProductDetail:
         if any(product.slug == payload.slug for product in self.products):
             raise HTTPException(status_code=409, detail="El slug ya existe")

@@ -14,6 +14,7 @@ import { CheckoutPage } from "./pages/CheckoutPage";
 import { CollectionPage } from "./pages/CollectionPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { StoreSalePage } from "./pages/StoreSalePage";
@@ -84,6 +85,14 @@ function App() {
           element={
             <SiteShell>
               <AccountPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/orders/:orderId"
+          element={
+            <SiteShell>
+              <OrderDetailPage />
             </SiteShell>
           }
         />

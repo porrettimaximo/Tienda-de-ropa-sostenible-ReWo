@@ -600,6 +600,32 @@ export async function getCustomerOrders(customerId = "cus-maria-fernandez"): Pro
   }
 }
 
+export async function getCustomerOrder(orderId: string): Promise<CustomerOrder | null> {
+  try {
+    const data = await requestJson<ApiOrderSummary>(`/loyalty/orders/${orderId}`);
+    return {
+      id: data.id,
+      channel: data.sales_channel,
+      total: data.total,
+      totalLabel: formatCurrency(data.total),
+      loyaltyPoints: data.loyalty_points_earned,
+      paymentMethod: data.payment_method,
+      notes: data.notes,
+      items: data.items.map((item) => ({
+        productSlug: item.product_slug,
+        productName: item.product_name,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        lineTotal: item.line_total,
+        lineTotalLabel: formatCurrency(item.line_total)
+      }))
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getAdminSummary() {
   try {
     const response = await requestJson<ApiOverview>("/reports/overview");

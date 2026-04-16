@@ -23,6 +23,16 @@ def get_loyalty_customer_orders(
     return service.get_customer_orders(customer_id)
 
 
+@router.get("/orders/{order_id}", response_model=OrderSummary)
+def get_loyalty_order(
+    order_id: str, service: ReportingService = Depends(get_reporting_service)
+) -> OrderSummary:
+    order = service.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order
+
+
 @router.put("/customers/{customer_id}", response_model=LoyaltyCustomer)
 def update_loyalty_customer(
     customer_id: str,

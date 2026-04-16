@@ -1,131 +1,282 @@
-# ReWo - Tienda de ropa sostenible
+# 🌿 ReWo - Tienda de Ropa Sostenible
 
-Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack liviano, rapido de implementar y facil de desplegar gratis.
+**E-commerce moderno para marcas sostenibles.** Catálogo, checkout, programa de lealtad, panel admin y reportes.
 
-## Stack final elegido
+> Status: 📊 MVP visual completo (100%) | Backend estructurado (40%) | Integración Supabase pendiente
 
-- Frontend: `React` + `Vite` + `TypeScript`
-- UI: `Tailwind CSS`
-- Backend API: `Python` + `FastAPI`
-- Base de datos: `Supabase Postgres`
-- Auth: `Supabase Auth`
-- Storage opcional: `Supabase Storage`
-- Deploy:
-  - `web`: `Netlify`
-  - `api`: `Render`
-  - `db/auth/storage`: `Supabase`
+---
 
-## Por que este stack
+## 🎯 Quick Links
 
-- `React + Vite` permite construir pantallas rapido y despues replicar visualmente el estilo que definas.
-- `FastAPI` da velocidad de desarrollo, validacion fuerte y documentacion automatica.
-- `Supabase` evita montar auth y base de datos desde cero.
-- `Netlify + Render + Supabase` encaja bien con planes gratuitos y herramientas que ya usas.
+📖 **[Arquitectura Completa](docs/ARCHITECTURE.md)** - Visión general, capas, patrones  
+📋 **[Estándares de Código](docs/CODING-STANDARDS.md)** - Naming, type hints, docstrings  
+🚀 **[Guía de Desarrollo](docs/DEVELOPMENT-GUIDE.md)** - Setup, ejecutar, debugging  
+📊 **[Diagramas](docs/ARCHITECTURE-DIAGRAMS.md)** - Flujos de datos, BD relacional  
 
-## Arquitectura inicial
+---
 
-- `apps/web`: interfaz del ecommerce
-- `apps/api`: API REST y logica del negocio
-- `docs`: requerimientos, checklist, decisiones tecnicas y entregables
+## 🏗️ Stack Tecnológico
 
-## Alcance funcional sugerido para el MVP
+### Frontend
+- **React 18** + **TypeScript** 5.6 - UI components tipo-safe
+- **Vite** 5.4 - Build + HMR ultra-rápido
+- **Tailwind CSS** 3.4 - Styling utility-first
+- **React Router** 6.28 - Client-side routing (16 rutas)
 
-- Landing / home
-- Catalogo de productos
-- Detalle de producto con talla y color
-- Carrito
-- Checkout basico
-- Login admin
-- Panel admin simple para productos, variantes y stock
-- Registro de ventas en tienda fisica
-- Promociones basicas y combos
-- Programa de lealtad por puntos
-- Proveedores eticos
-- Reporte de ventas por talla y color
+### Backend
+- **FastAPI** 0.115 - Web framework con validación automática
+- **Python** 3.10+ - Tipado con type hints
+- **Pydantic** - Validación de datos
+- **Python-Jose** - JWT authentication
 
-## Decisiones visuales y de contenido ya incorporadas
+### Base de Datos & Auth
+- **Supabase** (PostgreSQL) - BD + Auth en una plataforma
+- **Supabase Auth** - OAuth + email/password
 
-- Banner promocional para `Combos de Temporada`
-- Seccion de `Programa de Lealtad` con `Puntos Eco`
-- Seccion de `Proveedores Eticos` enfocada en transparencia de marca
-- Flujo de autenticacion diferenciado para `cliente` y `admin`
+### Deploy
+- **Frontend**: Netlify (static hosting)
+- **Backend**: Render (serverless)
+- **Database**: Supabase (managed PostgreSQL)
 
-## Pantallas ya definidas
+---
 
-- Inicio
-- Coleccion
-- Detalle de producto
-- Bolsa
-- Checkout
-- Login cliente
-- Mi cuenta
-- Login admin
-- Panel admin
+## 📁 Estructura del Proyecto
 
-## Conexion actual del frontend
+```
+ReWo/
+├── apps/
+│   ├── web/              # React + Vite frontend (16 páginas)
+│   │   ├── src/
+│   │   │   ├── pages/    # ProductDetail, Admin, etc
+│   │   │   ├── components/  # CartContext, Button, etc
+│   │   │   ├── lib/      # API client, helpers
+│   │   │   └── data/     # Mock data & types
+│   │   └── package.json
+│   │
+│   └── api/              # FastAPI backend (30+ endpoints)
+│       ├── app/
+│       │   ├── routers/  # HTTP (auth, products, admin, sales, etc)
+│       │   ├── services/ # Business logic (catalog, sales, loyalty)
+│       │   ├── repositories/ # Data access (Protocol-based)
+│       │   └── domain.py # Modelos de dominio
+│       ├── requirements.txt
+│       └── render.yaml
+│
+├── docs/                 # Documentación completa
+│   ├── ARCHITECTURE.md   # Diseño & patrones
+│   ├── CODING-STANDARDS.md # Guía de código
+│   ├── DEVELOPMENT-GUIDE.md # Cómo empezar
+│   └── ARCHITECTURE-DIAGRAMS.md # Diagramas Mermaid
+│
+└── supabase/
+    ├── migrations/       # SQL migrations (3)
+    └── seed.sql         # Datos iniciales
+```
 
-- Catalogo y detalle preparados para leer desde API
-- Login cliente y admin con flujo navegable
-- Mi cuenta y panel admin preparados para consumir endpoints reales
-- Fallback local activo mientras se configura backend/Supabase
+---
 
-## Desarrollo local
+## 🚀 Inicio Rápido
 
-### 1) Instalar dependencias
+### 1. Clone & Install
 
-Frontend (workspaces):
+```bash
+git clone <repo-url>
+cd "Tienda de ropa sostenible ReWo"
 
-```powershell
-cd "c:\Users\Maxi\Desktop\Tienda de ropa sostenible ReWo"
+# Backend
+cd apps/api
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Frontend
+cd ../web
 npm install
 ```
 
-Backend (Python):
+### 2. Configurar .env
 
-```powershell
-cd "c:\Users\Maxi\Desktop\Tienda de ropa sostenible ReWo"
-pip install -r apps/api/requirements.txt
+**`apps/api/.env`:**
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ADMIN_EMAILS=admin@ecowear.mx
 ```
 
-### 2) Levantar backend y frontend
-
-Backend (FastAPI):
-
-```powershell
-npm run dev:api
+**`apps/web/.env`:**
+```bash
+VITE_API_URL=http://localhost:8000
 ```
 
-Frontend (React/Vite):
+### 3. Ejecutar
 
-```powershell
-npm run dev:web
+```bash
+# Terminal 1: Backend
+cd apps/api && python -m uvicorn app.main:app --reload
+
+# Terminal 2: Frontend
+cd apps/web && npm run dev
+
+# Resultado:
+# API:  http://localhost:8000 (Swagger docs: /docs)
+# Web:  http://localhost:5173
 ```
 
-Si PowerShell bloquea `npm` (ExecutionPolicy), usa `npm.cmd`:
+---
 
-```powershell
-npm.cmd run dev:web
+## 📊 Funcionalidades Implementadas
+
+### ✅ Cliente (E-commerce)
+- [x] Home page con hero
+- [x] Catálogo de productos (filtrable)
+- [x] Detalle de producto (talla, color, stock)
+- [x] Carrito (localStorage)
+- [x] Checkout simplificado
+- [x] Login/Register
+- [x] Mi cuenta + historial de órdenes
+- [x] Programa de lealtad (UI)
+
+### ✅ Admin
+- [x] Dashboard con KPIs
+- [x] Gestión de productos (CRUD)
+- [x] Gestión de variantes (talla, color, stock, precio)
+- [x] Gestión de promociones (crear, activar/desactivar)
+- [x] Gestión de proveedores éticos
+- [x] Ventas tienda física (registro)
+- [x] Reportes: ventas por talla/color, KPIs
+
+### ✅ Backend
+- [x] API REST completa (8 routers, 30+ endpoints)
+- [x] Autenticación con JWT
+- [x] Roles (client/admin)
+- [x] Validación automática (Pydantic)
+- [x] Patrón Repository (abstracto)
+- [x] Cálculo básico de descuentos
+
+### ⏳ Pendiente (Próxima Fase)
+- [ ] Integración Supabase productiva
+- [ ] Lógica completa de puntos lealtad
+- [ ] Gestión de stock (decrementar en checkout, alertas)
+- [ ] Cálculo avanzado de descuentos (por producto, %)
+- [ ] Métodos de pago (Stripe, etc)
+- [ ] Tests (Pytest, Vitest)
+- [ ] Email notifications
+- [ ] Búsqueda full-text
+
+---
+
+## 🏛️ Principios de Arquitectura
+
+### Layered Architecture
+```
+Routers (HTTP) → Services (Business Logic) → Repositories (Data Access) → Database
 ```
 
-### 3) Abrir la app
+### Dependency Injection
+Todas las dependencias se inyectan (no se crean locally), facilitando tests y cambios.
 
-- Frontend: normalmente `http://localhost:5173`
-- Backend: `http://127.0.0.1:8000`
+### Protocol-based Repositories
+Interfaz abstracta = fácil cambiar de MemoryRepository a SupabaseRepository sin tocar services.
 
-Checks rápidos de API:
+### Type Safety
+Type hints en Python + TypeScript en React = errores atrapados en IDE, no en runtime.
 
-- `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/products`
+---
 
-Nota: el frontend usa `VITE_API_URL` (ver `apps/web/.env.example`). Por defecto apunta a `http://127.0.0.1:8000`.
+## 📚 Documentación
 
-## Funcionalidad extra sugerida
+| Doc | Propósito |
+|-----|-----------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Diseño de capas, patrones, flujos |
+| [CODING-STANDARDS.md](docs/CODING-STANDARDS.md) | Convenciones, type hints, docstrings |
+| [DEVELOPMENT-GUIDE.md](docs/DEVELOPMENT-GUIDE.md) | Setup, cómo correr, debugging |
+| [ARCHITECTURE-DIAGRAMS.md](docs/ARCHITECTURE-DIAGRAMS.md) | Diagramas Mermaid (10+) |
+| [requerimientos-cliente.md](docs/requerimientos-cliente.md) | Brief del cliente |
+| [data-model.md](docs/data-model.md) | Esquema de BD |
 
-`Modulo de impacto sostenible`
+---
 
-- Mostrar materiales sostenibles por producto
-- Comunicar ahorro o impacto positivo
-- Reforzar la propuesta de valor de la marca
+## 🔧 Comandos Clave
+
+```bash
+# Backend
+npm run dev:api                # Ejecutar con hot-reload
+cd apps/api && pytest tests/   # Correr tests
+
+# Frontend
+npm run dev:web               # Dev server
+npm run build:web             # Build producción
+npm run preview:web           # Preview del build
+
+# Database
+supabase migration up         # Aplicar migraciones
+```
+
+---
+
+## 🛠️ Debugging
+
+**Backend**: VS Code debugger (`.vscode/launch.json` configurado)  
+**Frontend**: React DevTools (browser extension)  
+**Network**: Chrome DevTools → Network tab  
+
+Ver [DEVELOPMENT-GUIDE.md](docs/DEVELOPMENT-GUIDE.md#debugging) para más.
+
+---
+
+## 📦 Deploy
+
+### Supabase (Database)
+```bash
+supabase db push          # Aplicar migraciones
+supabase db seed seed.sql # Seedear datos
+```
+
+### Backend → Render
+```yaml
+# render.yaml (ya configurado)
+buildCommand: pip install -r requirements.txt
+startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Push a main branch → Render deploya automáticamente.
+
+### Frontend → Netlify
+```bash
+cd apps/web
+npm run build
+# Drag & drop `dist/` a netlify.com o conectar GitHub
+```
+
+---
+
+## 🤝 Contribuir
+
+1. Crear rama: `git checkout -b feat/my-feature`
+2. Implementar (ver [DEVELOPMENT-GUIDE.md](docs/DEVELOPMENT-GUIDE.md#flujo-de-desarrollo))
+3. Commit: `git commit -m "feat(scope): description"` (Conventional Commits)
+4. Push: `git push origin feat/my-feature`
+5. PR & review
+
+---
+
+## 📄 Licencia
+
+MIT
+
+---
+
+## 👥 Soporte
+
+Para preguntas sobre arquitectura → Ver [ARCHITECTURE.md](docs/ARCHITECTURE.md)  
+Para setup → Ver [DEVELOPMENT-GUIDE.md](docs/DEVELOPMENT-GUIDE.md)  
+Para estándares de código → Ver [CODING-STANDARDS.md](docs/CODING-STANDARDS.md)  
+
+**¡Bienvenido al proyecto! 🌿**
+
+Por qué es útil comercialmente: Mejora la comunicación con el cliente y asegura que el equipo del negocio actúe rápido ante situaciones importantes.
+
+Cómo implementarlo: Integrar un servicio de mensajería (como SendGrid para emails) gatillado por eventos específicos en la base de datos
 
 ## Entregables exigidos por la prueba
 
@@ -146,9 +297,3 @@ Nota: el frontend usa `VITE_API_URL` (ver `apps/web/.env.example`). Por defecto 
 `-- package.json
 ```
 
-## Proximo paso recomendado
-
-1. Modelar entidades reales del negocio en Supabase.
-2. Crear la primera pantalla visual.
-3. Replicar ese lenguaje visual en el resto del flujo.
-4. Conectar frontend, backend y Supabase.
