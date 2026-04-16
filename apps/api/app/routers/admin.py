@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.domain import ProductDetail, Promotion
+from app.security import require_admin
 from app.schemas import (
     AdminProductResponse,
     AdminPromotionResponse,
@@ -13,7 +14,7 @@ from app.services.catalog_service import CatalogService
 from app.services.dependencies import get_catalog_service, get_promotions_service
 from app.services.promotions_service import PromotionsService
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/products", response_model=list[ProductDetail])

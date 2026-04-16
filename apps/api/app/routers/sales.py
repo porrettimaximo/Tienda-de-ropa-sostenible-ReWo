@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
 
 from app.schemas import CheckoutRequest, CheckoutResponse
+from app.domain import AuthUser
+from app.security import require_admin
 from app.services.dependencies import get_sales_service
 from app.services.sales_service import SalesService
 
@@ -16,6 +18,8 @@ def checkout(
 
 @router.post("/sales/store", response_model=CheckoutResponse)
 def create_store_sale(
-    payload: CheckoutRequest, service: SalesService = Depends(get_sales_service)
+    payload: CheckoutRequest,
+    service: SalesService = Depends(get_sales_service),
+    user: AuthUser = Depends(require_admin),
 ) -> CheckoutResponse:
     return service.checkout_store(payload)

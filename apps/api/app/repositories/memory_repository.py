@@ -20,7 +20,7 @@ from app.domain import (
     Supplier,
 )
 from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest, PromotionUpsertRequest
-from app.services.promotions import apply_combo_promotion
+from app.services.promotions import apply_best_promotion
 
 
 class MemoryRepository:
@@ -216,7 +216,11 @@ class MemoryRepository:
             )
             self._register_sales_report(variant.size, variant.color, sales_channel, requested_item.quantity, line_total)
 
-        applied_promo = apply_combo_promotion(subtotal=subtotal, product_slugs=product_slugs)
+        applied_promo = apply_best_promotion(
+            subtotal=subtotal,
+            product_slugs=product_slugs,
+            promotions=self.list_promotions(active_only=True),
+        )
         discount_total = applied_promo.discount_total if applied_promo else 0.0
         total = max(0.0, subtotal - discount_total)
 

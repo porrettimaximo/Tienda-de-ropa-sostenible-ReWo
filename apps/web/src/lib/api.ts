@@ -223,7 +223,14 @@ export type CustomerOrder = {
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${config.apiUrl}${path}`, init);
+  const storedToken =
+    typeof window !== "undefined" ? window.localStorage.getItem("ecowear_access_token") : null;
+  const headers = new Headers(init?.headers);
+  if (storedToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${storedToken}`);
+  }
+
+  const response = await fetch(`${config.apiUrl}${path}`, { ...init, headers });
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
   }
@@ -729,13 +736,21 @@ export async function signInClient(email: string, password: string) {
     throw new Error("Completa email y contrasena");
   }
   try {
-    return await requestJson<{ role: "client"; access_token?: string }>("/auth/login/client", {
+    const response = await requestJson<{
+      access_token: string;
+      token_type: string;
+      user: { id: string; name: string; email?: string | null; role: "client" | "admin" };
+    }>("/auth/login/client", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: email, password })
     });
+    if (response.access_token && typeof window !== "undefined") {
+      window.localStorage.setItem("ecowear_access_token", response.access_token);
+    }
+    return response;
   } catch {
-    return { role: "client" as const };
+    return { access_token: "", token_type: "bearer", user: { id: "", name: "", role: "client" as const } };
   }
 }
 
@@ -744,13 +759,21 @@ export async function signInAdmin(username: string, password: string) {
     throw new Error("Completa usuario y contrasena");
   }
   try {
-    return await requestJson<{ role: "admin"; access_token?: string }>("/auth/login/admin", {
+    const response = await requestJson<{
+      access_token: string;
+      token_type: string;
+      user: { id: string; name: string; email?: string | null; role: "client" | "admin" };
+    }>("/auth/login/admin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: username, password })
     });
+    if (response.access_token && typeof window !== "undefined") {
+      window.localStorage.setItem("ecowear_access_token", response.access_token);
+    }
+    return response;
   } catch {
-    return { role: "admin" as const };
+    return { access_token: "", token_type: "bearer", user: { id: "", name: "", role: "admin" as const } };
   }
 }
 

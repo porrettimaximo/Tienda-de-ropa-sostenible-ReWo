@@ -35,3 +35,46 @@ def apply_combo_promotion(
 
     return AppliedPromotion(label="Combo de temporada", discount_total=discount_total)
 
+
+def apply_best_promotion(
+    *,
+    subtotal: float,
+    product_slugs: list[str],
+    promotions: list[object],
+) -> AppliedPromotion | None:
+    """Compute the best discount among active promotions.
+
+    Promotion objects are expected to have:
+    - name
+    - promotion_type: 'fixed' | 'percentage' | 'combo'
+    - discount_value (float)
+    """
+
+    best: AppliedPromotion | None = None
+
+    for promo in promotions:
+        promo_type = getattr(promo, "promotion_type", None)
+        discount_value = float(getattr(promo, "discount_value", 0) or 0)
+        label = str(getattr(promo, "name", "Promocion"))
+
+        candidate: AppliedPromotion | None = None
+        if promo_type == "fixed":
+            candidate = AppliedPromotion(label=label, discount_total=min(discount_value, subtotal))
+        elif promo_type == "percentage":
+            candidate = AppliedPromotion(label=label, discount_total=min(subtotal, subtotal * (discount_value / 100.0)))
+        elif promo_type == "combo":
+            candidate = apply_combo_promotion(
+                subtotal=subtotal,
+                product_slugs=product_slugs,
+                discount_amount=discount_value or 350,
+            )
+            if candidate is not None:
+                candidate = AppliedPromotion(label=label, discount_total=candidate.discount_total)
+
+        if candidate is None or candidate.discount_total <= 0:
+            continue
+
+        if best is None or candidate.discount_total > best.discount_total:
+            best = candidate
+
+    return best

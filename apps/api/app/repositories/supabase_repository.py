@@ -25,13 +25,13 @@ from app.schemas import (
     PromotionUpsertRequest,
     VariantUpsertRequest,
 )
-from app.services.supabase_client import get_supabase_client
-from app.services.promotions import apply_combo_promotion
+from app.services.supabase_client import get_supabase_service_client
+from app.services.promotions import apply_best_promotion
 
 
 class SupabaseRepository:
     def __init__(self) -> None:
-        self.client = get_supabase_client()
+        self.client = get_supabase_service_client()
         self.admin_users = [
             AuthUser(
                 id="admin-ecowear",
@@ -216,7 +216,8 @@ class SupabaseRepository:
                 subtotal=float(row["subtotal"]),
                 discount_total=float(row.get("discount_total") or 0),
                 total=float(row["total"]),
-                promotion_label="Combo de temporada" if float(row.get("discount_total") or 0) > 0 else None,
+                promotion_label=row.get("promotion_label")
+                or ("Promo aplicada" if float(row.get("discount_total") or 0) > 0 else None),
                 loyalty_points_earned=row.get("loyalty_points_earned", 0),
                 payment_method=row.get("payment_method"),
                 notes=row.get("notes"),
@@ -348,7 +349,11 @@ class SupabaseRepository:
                 )
             )
 
-        applied_promo = apply_combo_promotion(subtotal=subtotal, product_slugs=product_slugs)
+        applied_promo = apply_best_promotion(
+            subtotal=subtotal,
+            product_slugs=product_slugs,
+            promotions=self.list_promotions(active_only=True),
+        )
         discount_total = applied_promo.discount_total if applied_promo else 0.0
         total = max(0.0, subtotal - discount_total)
 
@@ -364,6 +369,7 @@ class SupabaseRepository:
                 "discount_total": discount_total,
                 "total": total,
                 "loyalty_points_earned": loyalty_points,
+                "promotion_label": applied_promo.label if applied_promo else None,
                 "notes": payload.notes,
             }
         ).execute()
