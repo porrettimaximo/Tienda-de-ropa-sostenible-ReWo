@@ -90,7 +90,9 @@ class OrderSummary(BaseModel):
     customer_id: str | None = None
     customer_name: str | None = None
     subtotal: float = Field(ge=0)
+    discount_total: float = Field(default=0, ge=0)
     total: float = Field(ge=0)
+    promotion_label: str | None = None
     loyalty_points_earned: int = Field(ge=0)
     payment_method: str | None = None
     notes: str | None = None

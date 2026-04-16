@@ -19,6 +19,7 @@ from app.domain import (
     Supplier,
 )
 from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest
+from app.services.promotions import apply_combo_promotion
 
 
 class MemoryRepository:
@@ -174,6 +175,7 @@ class MemoryRepository:
             raise HTTPException(status_code=400, detail="Debes enviar items")
         items: list[OrderItem] = []
         subtotal = 0.0
+        product_slugs: list[str] = []
         customer = None
         if payload.customer_id:
             customer = self.get_customer(payload.customer_id)
@@ -188,6 +190,7 @@ class MemoryRepository:
             variant.stock -= requested_item.quantity
             line_total = variant.price * requested_item.quantity
             subtotal += line_total
+            product_slugs.append(product.slug)
             items.append(
                 OrderItem(
                     product_slug=product.slug,
@@ -201,7 +204,12 @@ class MemoryRepository:
                 )
             )
             self._register_sales_report(variant.size, variant.color, sales_channel, requested_item.quantity, line_total)
-        loyalty_points = int(subtotal // 100) * 10
+
+        applied_promo = apply_combo_promotion(subtotal=subtotal, product_slugs=product_slugs)
+        discount_total = applied_promo.discount_total if applied_promo else 0.0
+        total = max(0.0, subtotal - discount_total)
+
+        loyalty_points = int(total // 100) * 10
         if customer is not None:
             customer.loyalty_points += loyalty_points
         order = OrderSummary(
@@ -210,7 +218,9 @@ class MemoryRepository:
             customer_id=customer.id if customer else payload.customer_id,
             customer_name=customer.full_name if customer else payload.customer_name,
             subtotal=subtotal,
-            total=subtotal,
+            discount_total=discount_total,
+            total=total,
+            promotion_label=applied_promo.label if applied_promo else None,
             loyalty_points_earned=loyalty_points,
             payment_method=payload.payment_method,
             notes=payload.notes,
@@ -227,7 +237,7 @@ class MemoryRepository:
         sales_total = sum(order.total for order in self.orders) or sum(row.total_revenue for row in self.sales_report)
         return AdminOverview(
             low_stock_variants=low_stock_variants,
-            active_promotions=3,
+            active_promotions=1,
             ethical_suppliers=len(self.suppliers),
             sales_total=sales_total,
         )

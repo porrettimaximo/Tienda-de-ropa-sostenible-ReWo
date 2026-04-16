@@ -16,11 +16,13 @@ export function CheckoutPage() {
     orderId: string;
     loyaltyPoints: number;
     total: number;
+    discountTotal: number;
+    promotionLabel: string | null;
   } | null>(null);
 
-  const promotionDiscount = subtotal >= 5000 ? 350 : 0;
-  const total = subtotal - promotionDiscount;
-  const loyaltyPreview = Math.floor(total / 100) * 10;
+  const estimatedPromotionDiscount = subtotal >= 5000 && items.length >= 2 ? 350 : 0;
+  const estimatedTotal = subtotal - estimatedPromotionDiscount;
+  const loyaltyPreview = Math.floor(estimatedTotal / 100) * 10;
 
   if (items.length === 0 && !confirmation) {
     return (
@@ -65,7 +67,9 @@ export function CheckoutPage() {
       setConfirmation({
         orderId: order.id,
         loyaltyPoints: order.loyalty_points_earned,
-        total: order.total
+        total: order.total,
+        discountTotal: order.discount_total ?? 0,
+        promotionLabel: order.promotion_label ?? null
       });
       clearCart();
     } catch {
@@ -94,6 +98,12 @@ export function CheckoutPage() {
             <ConfirmationCard label="Puntos eco" value={`+${confirmation.loyaltyPoints}`} />
             <ConfirmationCard label="Estado" value="Registrado" />
           </div>
+          {confirmation.discountTotal > 0 ? (
+            <p className="mx-auto mt-8 max-w-xl text-sm text-on-surface-variant">
+              Promocion aplicada: {confirmation.promotionLabel ?? "Combo"} (-$
+              {confirmation.discountTotal.toLocaleString("es-MX")} MXN)
+            </p>
+          ) : null}
 
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
@@ -212,13 +222,13 @@ export function CheckoutPage() {
             <SummaryRow label="Subtotal" value={`$${subtotal.toLocaleString("es-MX")} MXN`} />
             <SummaryRow
               label="Promocion combo"
-              value={`-$${promotionDiscount.toLocaleString("es-MX")} MXN`}
+              value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
               valueClassName="text-secondary"
             />
             <SummaryRow label="Puntos a ganar" value={`+${loyaltyPreview}`} valueClassName="text-secondary" />
           </div>
 
-          <p className="mt-8 text-3xl font-black">${total.toLocaleString("es-MX")} MXN</p>
+          <p className="mt-8 text-3xl font-black">${estimatedTotal.toLocaleString("es-MX")} MXN</p>
 
           <button
             className="mt-8 w-full bg-inverse-surface px-8 py-4 text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"

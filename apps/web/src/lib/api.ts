@@ -99,7 +99,9 @@ type ApiCheckoutResponse = {
     customer_id?: string | null;
     customer_name?: string | null;
     subtotal: number;
+    discount_total?: number;
     total: number;
+    promotion_label?: string | null;
     loyalty_points_earned: number;
     payment_method?: string | null;
     notes?: string | null;

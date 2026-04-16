@@ -20,6 +20,7 @@ from app.domain import (
 )
 from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest
 from app.services.supabase_client import get_supabase_client
+from app.services.promotions import apply_combo_promotion
 
 
 class SupabaseRepository:
@@ -207,7 +208,9 @@ class SupabaseRepository:
                 customer_id=customer.id,
                 customer_name=customer.full_name,
                 subtotal=float(row["subtotal"]),
+                discount_total=float(row.get("discount_total") or 0),
                 total=float(row["total"]),
+                promotion_label="Combo de temporada" if float(row.get("discount_total") or 0) > 0 else None,
                 loyalty_points_earned=row.get("loyalty_points_earned", 0),
                 payment_method=row.get("payment_method"),
                 notes=row.get("notes"),
@@ -311,6 +314,7 @@ class SupabaseRepository:
 
         items: list[OrderItem] = []
         subtotal = 0.0
+        product_slugs: list[str] = []
 
         for requested_item in payload.items:
             product = self.get_product(requested_item.product_slug)
@@ -324,6 +328,7 @@ class SupabaseRepository:
             client.table("product_variants").update({"stock": new_stock}).eq("id", variant.id).execute()
             line_total = variant.price * requested_item.quantity
             subtotal += line_total
+            product_slugs.append(product.slug)
             items.append(
                 OrderItem(
                     product_slug=product.slug,
@@ -337,7 +342,11 @@ class SupabaseRepository:
                 )
             )
 
-        loyalty_points = int(subtotal // 100) * 10
+        applied_promo = apply_combo_promotion(subtotal=subtotal, product_slugs=product_slugs)
+        discount_total = applied_promo.discount_total if applied_promo else 0.0
+        total = max(0.0, subtotal - discount_total)
+
+        loyalty_points = int(total // 100) * 10
         order_id = str(uuid4())
         client.table("orders").insert(
             {
@@ -346,8 +355,8 @@ class SupabaseRepository:
                 "sales_channel": sales_channel,
                 "status": "paid",
                 "subtotal": subtotal,
-                "discount_total": 0,
-                "total": subtotal,
+                "discount_total": discount_total,
+                "total": total,
                 "loyalty_points_earned": loyalty_points,
                 "notes": payload.notes,
             }
@@ -376,7 +385,9 @@ class SupabaseRepository:
             customer_id=customer.id if customer else payload.customer_id,
             customer_name=customer.full_name if customer else payload.customer_name,
             subtotal=subtotal,
-            total=subtotal,
+            discount_total=discount_total,
+            total=total,
+            promotion_label=applied_promo.label if applied_promo else None,
             loyalty_points_earned=loyalty_points,
             payment_method=payload.payment_method,
             notes=payload.notes,
@@ -403,7 +414,7 @@ class SupabaseRepository:
         sales_total = sum(item.total_revenue for item in self.get_sales_report())
         return AdminOverview(
             low_stock_variants=low_stock_variants,
-            active_promotions=3,
+            active_promotions=1,
             ethical_suppliers=len(self.list_suppliers()),
             sales_total=sales_total,
         )
