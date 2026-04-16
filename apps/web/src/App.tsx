@@ -21,82 +21,82 @@ function App() {
     <BrowserRouter>
       <CartProvider>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <SiteShell activeNav="collections">
-                <HomePage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/collections"
-            element={
-              <SiteShell activeNav="collections">
-                <CollectionPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/combos"
-            element={
-              <SiteShell activeNav="collections">
-                <CombosPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/products/:slug"
-            element={
-              <SiteShell activeNav="collections">
-                <ProductDetailPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/cart"
-            element={
-              <SiteShell activeNav="collections">
-                <CartPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/checkout"
-            element={
-              <SiteShell activeNav="collections">
-                <CheckoutPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <SiteShell activeNav="collections">
-                <LoginPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/account"
-            element={
-              <SiteShell activeNav="collections">
-                <AccountPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/admin/login"
-            element={
-              <SiteShell activeNav="collections">
-                <AdminLoginPage />
-              </SiteShell>
-            }
-          />
+        <Route
+          path="/"
+          element={
+            <SiteShell>
+              <HomePage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/collections"
+          element={
+            <SiteShell>
+              <CollectionPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/combos"
+          element={
+            <SiteShell>
+              <CombosPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/products/:slug"
+          element={
+            <SiteShell>
+              <ProductDetailPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <SiteShell>
+              <CartPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <SiteShell>
+              <CheckoutPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <SiteShell>
+              <LoginPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <SiteShell>
+              <AccountPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/login"
+          element={
+            <SiteShell>
+              <AdminLoginPage />
+            </SiteShell>
+          }
+        />
         <Route
           path="/admin"
           element={
-            <SiteShell activeNav="collections">
+            <SiteShell>
               <AdminDashboardPage />
             </SiteShell>
           }
@@ -104,7 +104,7 @@ function App() {
         <Route
           path="/admin/promotions"
           element={
-            <SiteShell activeNav="collections">
+            <SiteShell>
               <AdminPromotionsPage />
             </SiteShell>
           }
@@ -112,19 +112,19 @@ function App() {
         <Route
           path="/admin/catalog"
           element={
-            <SiteShell activeNav="collections">
+            <SiteShell>
               <AdminCatalogPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/admin/store-sales"
-            element={
-              <SiteShell activeNav="collections">
-                <StoreSalePage />
-              </SiteShell>
-            }
-          />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/store-sales"
+          element={
+            <SiteShell>
+              <StoreSalePage />
+            </SiteShell>
+          }
+        />
         </Routes>
       </CartProvider>
     </BrowserRouter>
