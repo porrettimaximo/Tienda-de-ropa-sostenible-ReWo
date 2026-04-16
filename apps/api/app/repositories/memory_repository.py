@@ -86,6 +86,10 @@ class MemoryRepository:
                 return customer
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
+    def list_customer_orders(self, customer_id: str) -> list[OrderSummary]:
+        self.get_customer(customer_id)
+        return [order for order in self.orders if order.customer_id == customer_id]
+
     def create_product(self, payload: ProductUpsertRequest) -> ProductDetail:
         if any(product.slug == payload.slug for product in self.products):
             raise HTTPException(status_code=409, detail="El slug ya existe")

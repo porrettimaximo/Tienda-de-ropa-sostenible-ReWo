@@ -53,6 +53,28 @@ type ApiAccountSummary = {
   loyalty_points: number;
 };
 
+type ApiOrderSummary = {
+  id: string;
+  sales_channel: "online" | "store";
+  customer_id?: string | null;
+  customer_name?: string | null;
+  subtotal: number;
+  total: number;
+  loyalty_points_earned: number;
+  payment_method?: string | null;
+  notes?: string | null;
+  items: Array<{
+    product_slug: string;
+    product_name: string;
+    variant_id: string;
+    size: string;
+    color: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }>;
+};
+
 type ApiOverview = {
   overview: {
     low_stock_variants: number;
@@ -167,6 +189,25 @@ export type SalesReportRow = {
   units: number;
   revenue: number;
   revenueLabel: string;
+};
+
+export type CustomerOrder = {
+  id: string;
+  channel: "online" | "store";
+  total: number;
+  totalLabel: string;
+  loyaltyPoints: number;
+  paymentMethod?: string | null;
+  notes?: string | null;
+  items: Array<{
+    productSlug: string;
+    productName: string;
+    size: string;
+    color: string;
+    quantity: number;
+    lineTotal: number;
+    lineTotalLabel: string;
+  }>;
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -336,6 +377,32 @@ export async function getCustomerAccount() {
     };
   } catch {
     return mockAccountSummary;
+  }
+}
+
+export async function getCustomerOrders(customerId = "cus-maria-fernandez"): Promise<CustomerOrder[]> {
+  try {
+    const data = await requestJson<ApiOrderSummary[]>(`/loyalty/customers/${customerId}/orders`);
+    return data.map((order) => ({
+      id: order.id,
+      channel: order.sales_channel,
+      total: order.total,
+      totalLabel: formatCurrency(order.total),
+      loyaltyPoints: order.loyalty_points_earned,
+      paymentMethod: order.payment_method,
+      notes: order.notes,
+      items: order.items.map((item) => ({
+        productSlug: item.product_slug,
+        productName: item.product_name,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        lineTotal: item.line_total,
+        lineTotalLabel: formatCurrency(item.line_total)
+      }))
+    }));
+  } catch {
+    return [];
   }
 }
 

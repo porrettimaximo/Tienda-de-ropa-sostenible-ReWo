@@ -158,6 +158,64 @@ class SupabaseRepository:
             loyalty_points=row["loyalty_points"],
         )
 
+    def list_customer_orders(self, customer_id: str) -> list[OrderSummary]:
+        client = self._client()
+        self.get_customer(customer_id)
+
+        orders_rows = (
+            client.table("orders").select("*").eq("customer_id", customer_id).order("created_at", desc=True).execute().data
+            or []
+        )
+        if not orders_rows:
+            return []
+
+        order_ids = [row["id"] for row in orders_rows]
+        order_items_rows = (
+            client.table("order_items").select("*").in_("order_id", order_ids).execute().data or []
+        )
+        products = {product.id: product for product in self.list_product_details()}
+        variants_by_id = {
+            variant.id: variant
+            for product in products.values()
+            for variant in product.variants
+        }
+
+        items_by_order: dict[str, list[OrderItem]] = defaultdict(list)
+        for row in order_items_rows:
+            product = products.get(row["product_id"])
+            variant = variants_by_id.get(row["variant_id"])
+            if product is None or variant is None:
+                continue
+            items_by_order[row["order_id"]].append(
+                OrderItem(
+                    product_slug=product.slug,
+                    product_name=product.name,
+                    variant_id=variant.id,
+                    size=variant.size,
+                    color=variant.color,
+                    quantity=row["quantity"],
+                    unit_price=float(row["unit_price"]),
+                    line_total=float(row["total_price"]),
+                )
+            )
+
+        customer = self.get_customer(customer_id)
+        return [
+            OrderSummary(
+                id=row["id"],
+                sales_channel=row["sales_channel"],
+                customer_id=customer.id,
+                customer_name=customer.full_name,
+                subtotal=float(row["subtotal"]),
+                total=float(row["total"]),
+                loyalty_points_earned=row.get("loyalty_points_earned", 0),
+                payment_method=row.get("payment_method"),
+                notes=row.get("notes"),
+                items=items_by_order.get(row["id"], []),
+            )
+            for row in orders_rows
+        ]
+
     def create_product(self, payload: ProductUpsertRequest) -> ProductDetail:
         client = self._client()
         inserted = (

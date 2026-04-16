@@ -1,4 +1,4 @@
-from app.domain import LoyaltyCustomer, SalesByVariantReport
+from app.domain import LoyaltyCustomer, OrderSummary, SalesByVariantReport
 from app.repositories.base import EcommerceRepository
 from app.schemas import AdminOverviewResponse
 
@@ -9,6 +9,9 @@ class ReportingService:
 
     def get_customer(self, customer_id: str) -> LoyaltyCustomer:
         return self.repository.get_customer(customer_id)
+
+    def get_customer_orders(self, customer_id: str) -> list[OrderSummary]:
+        return self.repository.list_customer_orders(customer_id)
 
     def get_sales_by_size_color(self) -> list[SalesByVariantReport]:
         return self.repository.get_sales_report()
