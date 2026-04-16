@@ -97,8 +97,9 @@ class MemoryRepository:
     def authenticate_admin(self, identifier: str, password: str) -> AuthUser:
         if not password:
             raise HTTPException(status_code=400, detail="Password requerida")
+        normalized = (identifier or "").strip().lower()
         for admin in self.admin_users:
-            if admin.email == identifier or admin.id == identifier or identifier == "admin":
+            if (admin.email or "").lower() == normalized or admin.id == identifier or normalized == "admin":
                 return admin
         raise HTTPException(status_code=401, detail="Administrador no encontrado")
 
@@ -107,6 +108,40 @@ class MemoryRepository:
             if customer.id == customer_id:
                 return customer
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    def create_customer(self, *, full_name: str, email: str) -> LoyaltyCustomer:
+        normalized = (email or "").strip().lower()
+        if any((customer.email or "").strip().lower() == normalized for customer in self.customers):
+            raise HTTPException(status_code=409, detail="Email ya registrado")
+        customer = LoyaltyCustomer(
+            id=f"cus-{uuid4().hex[:10]}",
+            full_name=full_name,
+            email=email,
+            loyalty_points=0,
+        )
+        self.customers.append(customer)
+        return customer
+
+    def update_customer(
+        self,
+        customer_id: str,
+        *,
+        full_name: str,
+        email: str | None,
+        phone: str | None,
+    ) -> LoyaltyCustomer:
+        customer = self.get_customer(customer_id)
+        if email is not None:
+            normalized = (email or "").strip().lower()
+            if normalized and any(
+                (item.email or "").strip().lower() == normalized and item.id != customer_id
+                for item in self.customers
+            ):
+                raise HTTPException(status_code=409, detail="Email ya registrado")
+            customer.email = email
+        customer.full_name = full_name
+        customer.phone = phone
+        return customer
 
     def list_customer_orders(self, customer_id: str) -> list[OrderSummary]:
         self.get_customer(customer_id)

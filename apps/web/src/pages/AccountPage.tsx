@@ -58,6 +58,12 @@ export function AccountPage() {
               {accountSummary.tier}
             </h2>
             <p className="mt-3 text-sm">{accountSummary.email}</p>
+            <Link
+              className="mt-6 inline-block text-[0.7rem] font-black uppercase tracking-[0.25em] underline underline-offset-4"
+              to="/profile"
+            >
+              Editar perfil
+            </Link>
             <div className="mt-10 border-t border-outline-variant/30 pt-8">
               <p className="text-[0.65rem] uppercase tracking-[0.3em] text-on-surface-variant">
                 Puntos disponibles

@@ -60,6 +60,7 @@ class LoyaltyCustomer(BaseModel):
     id: str
     full_name: str
     email: str | None = None
+    phone: str | None = None
     loyalty_points: int = Field(ge=0)
 
 

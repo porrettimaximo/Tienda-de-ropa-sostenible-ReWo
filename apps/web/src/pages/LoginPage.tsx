@@ -1,12 +1,16 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-import { signInClient } from "../lib/api";
+import { registerClient, signInAuto } from "../lib/api";
 
-export function LoginPage() {
+type Mode = "login" | "register";
+
+export function LoginPage({ defaultMode = "login" }: { defaultMode?: Mode }) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [mode, setMode] = useState<Mode>(defaultMode);
+  const [fullName, setFullName] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -15,25 +19,28 @@ export function LoginPage() {
     setError("");
 
     try {
-      await signInClient(email, password);
-      navigate("/account");
+      if (mode === "register") {
+        await registerClient({ fullName, email: identifier, password });
+        navigate("/account");
+        return;
+      }
+
+      const response = await signInAuto(identifier, password);
+      navigate(response.detectedRole === "admin" ? "/admin" : "/account");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "No se pudo iniciar sesión");
+      setError(submitError instanceof Error ? submitError.message : "No se pudo iniciar sesion");
     }
   }
 
   return (
     <main className="grid min-h-[calc(100vh-88px)] lg:grid-cols-2">
       <section className="hidden bg-inverse-surface p-12 text-surface lg:flex lg:flex-col lg:justify-end">
-        <span className="text-[0.7rem] uppercase tracking-[0.3em] text-tertiary-fixed">
-          Acceso / Comunidad
-        </span>
+        <span className="text-[0.7rem] uppercase tracking-[0.3em] text-tertiary-fixed">Acceso</span>
         <h1 className="mt-4 font-headline text-6xl font-black uppercase tracking-tighter">
-          Puntos eco y compras conscientes
+          Un solo login
         </h1>
         <p className="mt-8 max-w-lg text-base leading-relaxed text-surface-dim">
-          Inicia sesión para revisar tus puntos, historial de compras, recompensas y
-          próximos lanzamientos de colección.
+          Usa este formulario para clientes y administracion. El rol se elige antes de ingresar.
         </p>
       </section>
 
@@ -43,40 +50,70 @@ export function LoginPage() {
           onSubmit={handleSubmit}
         >
           <span className="text-[0.7rem] font-bold uppercase tracking-[0.3em] text-tertiary">
-            Login cliente
+            Acceso
           </span>
           <h2 className="mt-4 font-headline text-4xl font-black uppercase tracking-tighter">
-            Entra a tu cuenta
+            Acceso ECOWEAR
           </h2>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button
+              className={`border px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.25em] ${
+                mode === "login"
+                  ? "border-inverse-surface bg-inverse-surface text-surface"
+                  : "border-outline/30 bg-white hover:border-inverse-surface"
+              }`}
+              onClick={() => setMode("login")}
+              type="button"
+            >
+              Ingresar
+            </button>
+            <button
+              className={`border px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.25em] ${
+                mode === "register"
+                  ? "border-inverse-surface bg-inverse-surface text-surface"
+                  : "border-outline/30 bg-white hover:border-inverse-surface"
+              }`}
+              onClick={() => setMode("register")}
+              type="button"
+            >
+              Registrarme
+            </button>
+          </div>
+
           <div className="mt-8 space-y-4">
+            {mode === "register" ? (
+              <input
+                className="w-full border border-outline/30 px-4 py-4 text-sm"
+                onChange={(event) => setFullName(event.target.value)}
+                placeholder="Nombre completo"
+                value={fullName}
+              />
+            ) : null}
             <input
               className="w-full border border-outline/30 px-4 py-4 text-sm"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Correo electrónico"
-              value={email}
+              onChange={(event) => setIdentifier(event.target.value)}
+              placeholder="Email (o admin)"
+              value={identifier}
             />
             <input
               className="w-full border border-outline/30 px-4 py-4 text-sm"
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Contraseña"
+              placeholder="Contrasena"
               type="password"
               value={password}
             />
           </div>
+
           {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
+
           <div className="mt-8 flex flex-col gap-4">
             <button
               className="bg-inverse-surface px-8 py-4 text-center text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary"
               type="submit"
             >
-              Ingresar
+              {mode === "register" ? "Crear cuenta" : "Ingresar"}
             </button>
-            <Link
-              className="border border-inverse-surface px-8 py-4 text-center text-[0.7rem] font-black uppercase tracking-[0.25em] hover:bg-inverse-surface hover:text-surface"
-              to="/admin/login"
-            >
-              Acceso administrador
-            </Link>
           </div>
         </form>
       </section>

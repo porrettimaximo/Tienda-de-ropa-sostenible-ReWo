@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.domain import LoyaltyCustomer, OrderSummary, Promotion, SalesByVariantReport, SalesKpisReport
 from app.repositories.base import EcommerceRepository
-from app.schemas import AdminOverviewResponse
+from app.schemas import AdminOverviewResponse, CustomerUpdateRequest
 
 
 class ReportingService:
@@ -14,6 +14,14 @@ class ReportingService:
 
     def get_customer_orders(self, customer_id: str) -> list[OrderSummary]:
         return self.repository.list_customer_orders(customer_id)
+
+    def update_customer(self, customer_id: str, payload: CustomerUpdateRequest) -> LoyaltyCustomer:
+        return self.repository.update_customer(
+            customer_id,
+            full_name=payload.full_name,
+            email=payload.email,
+            phone=payload.phone,
+        )
 
     def list_promotions(self, active_only: bool = True) -> list[Promotion]:
         return self.repository.list_promotions(active_only=active_only)

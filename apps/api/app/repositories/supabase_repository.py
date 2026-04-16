@@ -153,8 +153,9 @@ class SupabaseRepository:
     def authenticate_admin(self, identifier: str, password: str) -> AuthUser:
         if not password:
             raise HTTPException(status_code=400, detail="Password requerida")
+        normalized = (identifier or "").strip().lower()
         for admin in self.admin_users:
-            if admin.email == identifier or admin.id == identifier or identifier == "admin":
+            if (admin.email or "").lower() == normalized or admin.id == identifier or normalized == "admin":
                 return admin
         raise HTTPException(status_code=401, detail="Administrador no encontrado")
 
@@ -170,7 +171,77 @@ class SupabaseRepository:
             id=row["id"],
             full_name=row["full_name"],
             email=row.get("email"),
+            phone=row.get("phone"),
             loyalty_points=available_points,
+        )
+
+    def create_customer(self, *, full_name: str, email: str) -> LoyaltyCustomer:
+        client = self._client()
+        normalized = (email or "").strip().lower()
+        existing = client.table("customers").select("*").eq("email", normalized).limit(1).execute().data or []
+        if existing:
+            raise HTTPException(status_code=409, detail="Email ya registrado")
+
+        customer_id = str(uuid4())
+        inserted = (
+            client.table("customers")
+            .insert(
+                {
+                    "id": customer_id,
+                    "full_name": full_name,
+                    "email": normalized,
+                    "loyalty_points": 0,
+                }
+            )
+            .execute()
+            .data
+        )
+        if not inserted:
+            raise HTTPException(status_code=500, detail="No se pudo crear el cliente")
+        self._ensure_loyalty_bootstrap(customer_id=customer_id, current_points=0)
+        return LoyaltyCustomer(id=customer_id, full_name=full_name, email=normalized, phone=None, loyalty_points=0)
+
+    def update_customer(
+        self,
+        customer_id: str,
+        *,
+        full_name: str,
+        email: str | None,
+        phone: str | None,
+    ) -> LoyaltyCustomer:
+        client = self._client()
+        current = self.get_customer(customer_id)
+
+        normalized_email = (email or "").strip().lower() if email is not None else None
+        if normalized_email:
+            existing = (
+                client.table("customers")
+                .select("id")
+                .eq("email", normalized_email)
+                .neq("id", customer_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            if existing:
+                raise HTTPException(status_code=409, detail="Email ya registrado")
+
+        client.table("customers").update(
+            {
+                "full_name": full_name,
+                "email": normalized_email if email is not None else current.email,
+                "phone": phone,
+            }
+        ).eq("id", customer_id).execute()
+
+        updated = self.get_customer(customer_id)
+        return LoyaltyCustomer(
+            id=updated.id,
+            full_name=updated.full_name,
+            email=updated.email,
+            phone=phone,
+            loyalty_points=updated.loyalty_points,
         )
 
     def list_customer_orders(self, customer_id: str) -> list[OrderSummary]:
@@ -780,6 +851,7 @@ class SupabaseRepository:
             id=row["id"],
             full_name=row["full_name"],
             email=row.get("email"),
+            phone=row.get("phone"),
             loyalty_points=available_points,
         )
 

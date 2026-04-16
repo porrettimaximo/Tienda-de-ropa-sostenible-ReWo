@@ -51,6 +51,7 @@ type ApiAccountSummary = {
   id: string;
   full_name: string;
   email?: string | null;
+  phone?: string | null;
   loyalty_points: number;
 };
 
@@ -318,6 +319,83 @@ class ApiError extends Error {
   }
 }
 
+type StoredUser = {
+  id: string;
+  name: string;
+  email?: string | null;
+  role: "client" | "admin";
+};
+
+const userStorageKey = "ecowear_user";
+
+function storeUser(user: StoredUser) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(userStorageKey, JSON.stringify(user));
+  window.dispatchEvent(new Event("ecowear_user_changed"));
+}
+
+function readStoredUser(): StoredUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(userStorageKey);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredUser() {
+  return readStoredUser();
+}
+
+export function logout() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem("ecowear_access_token");
+  window.localStorage.removeItem(userStorageKey);
+  window.dispatchEvent(new Event("ecowear_user_changed"));
+}
+
+export async function registerClient(payload: {
+  fullName: string;
+  email: string;
+  password: string;
+}) {
+  if (!payload.fullName || !payload.email || !payload.password) {
+    throw new Error("Completa nombre, email y contrasena");
+  }
+
+  const response = await requestJson<{
+    access_token: string;
+    token_type: string;
+    user: { id: string; name: string; email?: string | null; role: "client" | "admin" };
+  }>("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      full_name: payload.fullName,
+      email: payload.email,
+      password: payload.password
+    })
+  });
+
+  if (!response.access_token) {
+    throw new Error("No se pudo registrar");
+  }
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem("ecowear_access_token", response.access_token);
+  }
+  storeUser({
+    id: response.user.id,
+    name: response.user.name,
+    email: response.user.email ?? null,
+    role: response.user.role
+  });
+
+  return response;
+}
+
 function formatCurrency(value: number) {
   return `$${value.toLocaleString("es-MX")} MXN`;
 }
@@ -468,12 +546,15 @@ export async function getCatalogProduct(slug: string) {
 
 export async function getCustomerAccount() {
   try {
-    const data = await requestJson<ApiAccountSummary>("/loyalty/customers/cus-maria-fernandez");
+    const user = readStoredUser();
+    const customerId = user?.id ?? "cus-maria-fernandez";
+    const data = await requestJson<ApiAccountSummary>(`/loyalty/customers/${customerId}`);
     return {
       ...mockAccountSummary,
       name: data.full_name,
       email: data.email ?? mockAccountSummary.email,
-      ecoPoints: data.loyalty_points
+      ecoPoints: data.loyalty_points,
+      phone: data.phone ?? ""
     };
   } catch {
     return mockAccountSummary;
@@ -482,7 +563,9 @@ export async function getCustomerAccount() {
 
 export async function getCustomerOrders(customerId = "cus-maria-fernandez"): Promise<CustomerOrder[]> {
   try {
-    const data = await requestJson<ApiOrderSummary[]>(`/loyalty/customers/${customerId}/orders`);
+    const user = readStoredUser();
+    const effectiveId = user?.id ?? customerId;
+    const data = await requestJson<ApiOrderSummary[]>(`/loyalty/customers/${effectiveId}/orders`);
     return data.map((order) => ({
       id: order.id,
       channel: order.sales_channel,
@@ -975,6 +1058,12 @@ export async function signInClient(email: string, password: string) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("ecowear_access_token", response.access_token);
     }
+    storeUser({
+      id: response.user.id,
+      name: response.user.name,
+      email: response.user.email ?? null,
+      role: response.user.role
+    });
     return response;
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
@@ -1004,6 +1093,12 @@ export async function signInAdmin(username: string, password: string) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("ecowear_access_token", response.access_token);
     }
+    storeUser({
+      id: response.user.id,
+      name: response.user.name,
+      email: response.user.email ?? null,
+      role: response.user.role
+    });
     return response;
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
@@ -1014,6 +1109,57 @@ export async function signInAdmin(username: string, password: string) {
     }
     throw error instanceof Error ? error : new Error("No se pudo iniciar sesion");
   }
+}
+
+export async function signInAuto(identifier: string, password: string) {
+  try {
+    const response = await signInAdmin(identifier, password);
+    return { ...response, detectedRole: "admin" as const };
+  } catch (error) {
+    // If it's not an admin (401/403), try as client.
+    const isNotAdmin =
+      (error instanceof Error && error.message.includes("permisos")) ||
+      (error instanceof Error && error.message.includes("Credenciales"));
+
+    if (!isNotAdmin) {
+      // Still try client anyway; if it fails, it'll throw.
+    }
+
+    const response = await signInClient(identifier, password);
+    return { ...response, detectedRole: "client" as const };
+  }
+}
+
+export async function updateCustomerProfile(payload: { fullName: string; email: string; phone: string }) {
+  const user = readStoredUser();
+  if (!user) {
+    throw new Error("Necesitas iniciar sesion");
+  }
+  const response = await requestJson<ApiAccountSummary>(`/loyalty/customers/${user.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      full_name: payload.fullName,
+      email: payload.email,
+      phone: payload.phone || null
+    })
+  });
+  storeUser({ ...user, name: response.full_name, email: response.email ?? null });
+  return response;
+}
+
+export async function getCustomerProfile() {
+  const user = readStoredUser();
+  const customerId = user?.id ?? "cus-maria-fernandez";
+  const data = await requestJson<ApiAccountSummary>(`/loyalty/customers/${customerId}`);
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    email: data.email ?? "",
+    phone: data.phone ?? "",
+    ecoPoints: data.loyalty_points,
+    role: user?.role ?? "client"
+  };
 }
 
 export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutResult> {

@@ -67,33 +67,6 @@ export function CollectionPage() {
               visible y una navegacion mucho mas clara para compra online.
             </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-2">
-            <div className="border border-outline-variant/30 bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">
-                Productos
-              </p>
-              <p className="mt-3 text-3xl font-black">{products.length}</p>
-            </div>
-            <div className="border border-outline-variant/30 bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">
-                Resultados
-              </p>
-              <p className="mt-3 text-3xl font-black">{filteredProducts.length}</p>
-            </div>
-            <div className="border border-outline-variant/30 bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">
-                Colores
-              </p>
-              <p className="mt-3 text-3xl font-black">{colors.length - 1}</p>
-            </div>
-            <div className="border border-outline-variant/30 bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">
-                Tallas
-              </p>
-              <p className="mt-3 text-3xl font-black">{sizes.length - 1}</p>
-            </div>
-          </div>
         </div>
       </section>
 

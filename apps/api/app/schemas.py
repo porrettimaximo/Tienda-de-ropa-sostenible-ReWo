@@ -37,6 +37,18 @@ class LoginResponse(BaseModel):
     user: AuthUser
 
 
+class RegisterRequest(BaseModel):
+    full_name: str = Field(min_length=1)
+    email: str = Field(min_length=3)
+    password: str = Field(min_length=1)
+
+
+class CustomerUpdateRequest(BaseModel):
+    full_name: str = Field(min_length=1)
+    email: str | None = None
+    phone: str | None = None
+
+
 class CheckoutItemRequest(BaseModel):
     product_slug: str
     variant_id: str

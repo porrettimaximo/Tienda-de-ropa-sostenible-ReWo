@@ -15,6 +15,7 @@ import { CollectionPage } from "./pages/CollectionPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { StoreSalePage } from "./pages/StoreSalePage";
 
 function App() {
@@ -83,6 +84,14 @@ function App() {
           element={
             <SiteShell>
               <AccountPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <SiteShell>
+              <ProfilePage />
             </SiteShell>
           }
         />

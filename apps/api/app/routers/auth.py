@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.schemas import LoginRequest, LoginResponse
+from app.schemas import LoginRequest, LoginResponse, RegisterRequest
 from app.services.auth_service import AuthService
 from app.services.dependencies import get_auth_service
 
@@ -19,3 +19,10 @@ def login_admin(
     payload: LoginRequest, service: AuthService = Depends(get_auth_service)
 ) -> LoginResponse:
     return service.login_admin(payload)
+
+
+@router.post("/register", response_model=LoginResponse)
+def register_client(
+    payload: RegisterRequest, service: AuthService = Depends(get_auth_service)
+) -> LoginResponse:
+    return service.register_client(payload)
