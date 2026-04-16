@@ -40,18 +40,27 @@ export function AdminCatalogPage() {
   useEffect(() => {
     let active = true;
 
-    getAdminProducts().then((data) => {
-      if (!active) return;
-      setProducts(data);
-      setSelectedProductSlug(data[0]?.slug ?? "");
-      setVariantForms(
-        Object.fromEntries(
-          data.flatMap((product) =>
-            product.variants.map((variant) => [variant.id, { ...variant }])
+    getAdminProducts()
+      .then((data) => {
+        if (!active) return;
+        setProducts(data);
+        setSelectedProductSlug(data[0]?.slug ?? "");
+        setVariantForms(
+          Object.fromEntries(
+            data.flatMap((product) =>
+              product.variants.map((variant) => [variant.id, { ...variant }])
+            )
           )
-        )
-      );
-    });
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        setError(
+          error instanceof Error
+            ? `${error.message}. Inicia sesion en /admin/login.`
+            : "Necesitas iniciar sesion admin en /admin/login."
+        );
+      });
 
     return () => {
       active = false;

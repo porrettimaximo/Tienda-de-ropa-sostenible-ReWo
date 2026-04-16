@@ -45,9 +45,14 @@ Repositorio activo:
 - `PUT /admin/products/{slug}`
 - `POST /admin/products/{slug}/variants`
 - `PUT /admin/products/{slug}/variants/{variant_id}`
+- `GET /admin/suppliers`
+- `POST /admin/suppliers`
+- `PUT /admin/suppliers/{supplier_id}`
 - `GET /loyalty/customers/{id}`
+- `GET /loyalty/customers/{id}/orders`
 - `GET /reports/sales-by-size-color`
 - `GET /reports/overview`
+- `GET /reports/kpis`
 
 ## Correr en local
 

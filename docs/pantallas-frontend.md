@@ -25,7 +25,15 @@ Definir las vistas principales del ecommerce y como se conectan entre si.
 - `Mi cuenta` `/account`
   - resumen de perfil, nivel, puntos y beneficios
 
+- `Combos` `/combos`
+  - detalle de promo activa y guia rapida para aplicarla
+
 ## Flujo admin
+
+- `Admin promociones` `/admin/promotions`
+  - alta/edicion de promos (combo/fijo/porcentaje)
+- `Admin proveedores` `/admin/suppliers`
+  - registro interno de proveedores (pais/certificacion/materiales)
 
 - `Login admin` `/admin/login`
   - acceso interno de operacion
@@ -59,3 +67,6 @@ Estas pantallas ya estan scaffolded en el frontend con navegacion real:
 - `AdminDashboardPage`
 - `AdminCatalogPage`
 - `StoreSalePage`
+- `CombosPage`
+- `AdminPromotionsPage`
+- `AdminSuppliersPage`

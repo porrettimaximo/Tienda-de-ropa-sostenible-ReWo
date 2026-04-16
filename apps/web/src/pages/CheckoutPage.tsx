@@ -10,6 +10,10 @@ export function CheckoutPage() {
   const [customerEmail, setCustomerEmail] = useState("maria@ecowear.mx");
   const [paymentMethod, setPaymentMethod] = useState("Tarjeta");
   const [notes, setNotes] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [invoiceRequired, setInvoiceRequired] = useState(false);
+  const [invoiceRfc, setInvoiceRfc] = useState("");
+  const [invoiceBusinessName, setInvoiceBusinessName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<{
@@ -20,9 +24,16 @@ export function CheckoutPage() {
     promotionLabel: string | null;
   } | null>(null);
 
-  const estimatedPromotionDiscount = subtotal >= 5000 && items.length >= 2 ? 350 : 0;
-  const estimatedTotal = subtotal - estimatedPromotionDiscount;
-  const loyaltyPreview = Math.floor(estimatedTotal / 100) * 10;
+  const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
+  const estimatedPromotionDiscount = subtotal >= 5000 && distinctProducts >= 2 ? 350 : 0;
+  const totalAfterPromo = Math.max(0, subtotal - estimatedPromotionDiscount);
+  const redeemablePoints = redeemPoints > 0 ? Math.floor(redeemPoints / 500) * 500 : 0;
+  const loyaltyDiscountPreview = redeemablePoints > 0 ? Math.floor(redeemablePoints / 500) * 100 : 0;
+  const maxRedeemPointsByTotal = Math.floor(totalAfterPromo / 100) * 500;
+  const effectiveRedeemPoints = Math.min(redeemablePoints, maxRedeemPointsByTotal);
+  const effectiveLoyaltyDiscount = effectiveRedeemPoints > 0 ? Math.floor(effectiveRedeemPoints / 500) * 100 : 0;
+  const estimatedTotal = Math.max(0, totalAfterPromo - effectiveLoyaltyDiscount);
+  const loyaltyPreview = Math.floor(estimatedTotal / 10);
 
   if (items.length === 0 && !confirmation) {
     return (
@@ -57,6 +68,10 @@ export function CheckoutPage() {
         customerEmail,
         paymentMethod,
         notes,
+        redeemPoints: effectiveRedeemPoints > 0 ? effectiveRedeemPoints : undefined,
+        invoiceRequired,
+        invoiceRfc: invoiceRequired ? invoiceRfc : undefined,
+        invoiceBusinessName: invoiceRequired ? invoiceBusinessName : undefined,
         items: items.map((item) => ({
           productSlug: item.productSlug,
           variantId: item.variantId,
@@ -168,20 +183,57 @@ export function CheckoutPage() {
             <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
               Pago y notas
             </h2>
-            <div className="mt-6 grid gap-4">
-              <select
-                className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
-                onChange={(event) => setPaymentMethod(event.target.value)}
-                value={paymentMethod}
-              >
-                <option value="Tarjeta">Tarjeta</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Efectivo">Efectivo</option>
-              </select>
-              <textarea
-                className="min-h-[140px] border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Notas para entrega, empaquetado o preferencia de contacto"
+          <div className="mt-6 grid gap-4">
+            <select
+              className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+              onChange={(event) => setPaymentMethod(event.target.value)}
+              value={paymentMethod}
+            >
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="TDD">TDD</option>
+              <option value="Efectivo">Efectivo</option>
+            </select>
+
+            <input
+              className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+              min={0}
+              onChange={(event) => setRedeemPoints(Number(event.target.value) || 0)}
+              placeholder="Canjear puntos (multiplo de 500)"
+              type="number"
+              value={redeemPoints}
+            />
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                checked={invoiceRequired}
+                className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface"
+                onChange={(event) => setInvoiceRequired(event.target.checked)}
+                type="checkbox"
+              />
+              Requiere factura
+            </label>
+
+            {invoiceRequired ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+                  onChange={(event) => setInvoiceRfc(event.target.value)}
+                  placeholder="RFC"
+                  value={invoiceRfc}
+                />
+                <input
+                  className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+                  onChange={(event) => setInvoiceBusinessName(event.target.value)}
+                  placeholder="Razon social"
+                  value={invoiceBusinessName}
+                />
+              </div>
+            ) : null}
+
+            <textarea
+              className="min-h-[140px] border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Notas para entrega, empaquetado o preferencia de contacto"
                 value={notes}
               />
             </div>
@@ -223,6 +275,11 @@ export function CheckoutPage() {
             <SummaryRow
               label="Promocion combo"
               value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
+              valueClassName="text-secondary"
+            />
+            <SummaryRow
+              label="Canje puntos"
+              value={`-$${effectiveLoyaltyDiscount.toLocaleString("es-MX")} MXN`}
               valueClassName="text-secondary"
             />
             <SummaryRow label="Puntos a ganar" value={`+${loyaltyPreview}`} valueClassName="text-secondary" />

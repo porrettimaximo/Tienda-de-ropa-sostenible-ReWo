@@ -21,6 +21,32 @@ Tienda de ropa sostenible con operacion mixta:
 - Gestion o registro de proveedores eticos
 - Reporte de ventas por talla y color
 
+## Reglas confirmadas (abril 2026)
+
+- `Combo de temporada`:
+  - aplica a todo el catalogo
+  - condicion: `2+ productos` y `subtotal >= $5,000 MXN`
+  - descuento: `-$350 MXN` fijo
+  - vigencia: hasta `30 abril 2026` (ilimitado dentro de la vigencia)
+- `Puntos Eco`:
+  - acumulacion: `1 punto` por cada `$10 MXN` pagados
+  - vencimiento: `12 meses` desde que se generan
+  - canje: `500 puntos = $100 MXN` de descuento
+  - aplica igual en `online` y `tienda fisica`
+- `Tallas estandar`:
+  - `XS, S, M, L, XL`
+  - ocultar variantes sin stock en navegacion/seleccion
+- `Ventas tienda fisica`:
+  - obligatorio registrar `sucursal` y `vendedor`
+  - metodos de pago: `Efectivo`, `Tarjeta`, `TDD`
+  - preguntar si requiere `factura`; si si: pedir `RFC` y `Razon social`
+- `Reportes`:
+  - filtros: por `fecha` y `canal`
+  - KPIs: `Top 5 productos`, `ticket promedio`, `unidades vendidas`
+- `Proveedores`:
+  - uso interno (admin)
+  - campos: `Nombre`, `Pais`, `Certificacion organica`, `Materiales`
+
 ## Decisiones de experiencia y contenido ya definidas
 
 Estas decisiones ya quedaron reflejadas en la propuesta visual inicial del frontend y conviene tratarlas como parte del alcance esperado:
@@ -123,8 +149,7 @@ El reporte deberia poder responder:
 
 ## Dudas utiles para confirmar por email
 
-- El cliente quiere pagos reales o checkout simulado
-- La tienda fisica necesita caja completa o solo registro manual de ventas
-- Los puntos se canjean o solo se acumulan
-- Los combos afectan stock de variantes individuales
-- Los reportes necesitan exportacion o solo vista en dashboard
+- Confirmar si el campo `TDD` refiere a `tarjeta de debito` o algun metodo especifico del negocio
+- Confirmar formato esperado de `RFC` y si hay validacion estricta o solo captura
+- Confirmar si el vencimiento de puntos es exacto a `365 dias` o a `mes calendario`
+- Confirmar si el combo se evalua por `productos distintos` (slug) o por `cantidad total de items`

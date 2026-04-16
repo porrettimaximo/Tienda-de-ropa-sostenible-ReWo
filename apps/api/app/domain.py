@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -5,6 +6,7 @@ from pydantic import BaseModel, Field
 
 SalesChannel = Literal["online", "store"]
 PromotionType = Literal["percentage", "fixed", "combo"]
+PaymentMethod = Literal["Efectivo", "Tarjeta", "TDD"]
 
 
 class Category(BaseModel):
@@ -16,8 +18,10 @@ class Category(BaseModel):
 class Supplier(BaseModel):
     id: str
     name: str
-    ethical_certification: str | None = None
     country: str | None = None
+    organic_certification: str | None = None
+    materials: list[str] = Field(default_factory=list)
+    notes: str | None = None
 
 
 class ProductVariant(BaseModel):
@@ -67,6 +71,24 @@ class SalesByVariantReport(BaseModel):
     total_revenue: float = Field(ge=0)
 
 
+class TopProductKpi(BaseModel):
+    product_slug: str
+    product_name: str
+    total_units: int = Field(ge=0)
+    total_revenue: float = Field(ge=0)
+
+
+class SalesKpisReport(BaseModel):
+    sales_channel: SalesChannel | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    total_orders: int = Field(ge=0)
+    ticket_average: float = Field(ge=0)
+    units_sold: int = Field(ge=0)
+    total_revenue: float = Field(ge=0)
+    top_products: list[TopProductKpi] = Field(default_factory=list)
+
+
 class AuthUser(BaseModel):
     id: str
     name: str
@@ -90,12 +112,21 @@ class OrderSummary(BaseModel):
     sales_channel: SalesChannel
     customer_id: str | None = None
     customer_name: str | None = None
+    created_at: datetime | None = None
     subtotal: float = Field(ge=0)
+    promotion_discount_total: float = Field(default=0, ge=0)
+    loyalty_discount_total: float = Field(default=0, ge=0)
     discount_total: float = Field(default=0, ge=0)
     total: float = Field(ge=0)
     promotion_label: str | None = None
+    redeemed_points: int = Field(default=0, ge=0)
     loyalty_points_earned: int = Field(ge=0)
-    payment_method: str | None = None
+    payment_method: PaymentMethod | None = None
+    store_name: str | None = None
+    seller: str | None = None
+    invoice_required: bool | None = None
+    invoice_rfc: str | None = None
+    invoice_business_name: str | None = None
     notes: str | None = None
     items: list[OrderItem]
 
@@ -113,4 +144,6 @@ class Promotion(BaseModel):
     description: str | None = None
     promotion_type: PromotionType
     discount_value: float = Field(ge=0)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
     is_active: bool = True

@@ -31,8 +31,9 @@ type ApiProductDetail = {
   supplier?: {
     id: string;
     name: string;
-    ethical_certification?: string | null;
     country?: string | null;
+    organic_certification?: string | null;
+    materials?: string[] | null;
   } | null;
   sustainability_label?: string | null;
   sustainability_score?: number | null;
@@ -59,9 +60,18 @@ type ApiOrderSummary = {
   customer_id?: string | null;
   customer_name?: string | null;
   subtotal: number;
+  promotion_discount_total?: number | null;
+  loyalty_discount_total?: number | null;
+  discount_total?: number | null;
   total: number;
+  redeemed_points?: number | null;
   loyalty_points_earned: number;
   payment_method?: string | null;
+  store_name?: string | null;
+  seller?: string | null;
+  invoice_required?: boolean | null;
+  invoice_rfc?: string | null;
+  invoice_business_name?: string | null;
   notes?: string | null;
   items: Array<{
     product_slug: string;
@@ -92,6 +102,22 @@ type ApiSalesReportRow = {
   total_revenue: number;
 };
 
+type ApiSalesKpis = {
+  sales_channel?: "online" | "store" | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  total_orders: number;
+  ticket_average: number;
+  units_sold: number;
+  total_revenue: number;
+  top_products: Array<{
+    product_slug: string;
+    product_name: string;
+    total_units: number;
+    total_revenue: number;
+  }>;
+};
+
 type ApiCheckoutResponse = {
   order: {
     id: string;
@@ -99,11 +125,19 @@ type ApiCheckoutResponse = {
     customer_id?: string | null;
     customer_name?: string | null;
     subtotal: number;
-    discount_total?: number;
+    promotion_discount_total?: number | null;
+    loyalty_discount_total?: number | null;
+    discount_total?: number | null;
     total: number;
     promotion_label?: string | null;
+    redeemed_points?: number | null;
     loyalty_points_earned: number;
     payment_method?: string | null;
+    store_name?: string | null;
+    seller?: string | null;
+    invoice_required?: boolean | null;
+    invoice_rfc?: string | null;
+    invoice_business_name?: string | null;
     notes?: string | null;
     items: Array<{
       product_slug: string;
@@ -177,6 +211,12 @@ export type CheckoutInput = {
   customerEmail?: string;
   paymentMethod?: string;
   notes?: string;
+  redeemPoints?: number;
+  storeName?: string;
+  seller?: string;
+  invoiceRequired?: boolean;
+  invoiceRfc?: string;
+  invoiceBusinessName?: string;
   items: CheckoutItemInput[];
 };
 
@@ -193,6 +233,19 @@ export type SalesReportRow = {
   revenueLabel: string;
 };
 
+export type SalesKpis = {
+  totalOrders: number;
+  ticketAverageLabel: string;
+  unitsSold: number;
+  totalRevenueLabel: string;
+  topProducts: Array<{
+    productSlug: string;
+    productName: string;
+    units: number;
+    revenueLabel: string;
+  }>;
+};
+
 export type Promotion = {
   id: string;
   name: string;
@@ -201,6 +254,15 @@ export type Promotion = {
   discountValue: number;
   isActive: boolean;
   discountLabel: string;
+};
+
+export type Supplier = {
+  id: string;
+  name: string;
+  country?: string | null;
+  organicCertification?: string | null;
+  materials: string[];
+  notes?: string | null;
 };
 
 export type CustomerOrder = {
@@ -232,9 +294,28 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   const response = await fetch(`${config.apiUrl}${path}`, { ...init, headers });
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const data = (await response.json()) as { detail?: string };
+      if (data?.detail) {
+        message = data.detail;
+      }
+    } catch {
+      // ignore body parsing errors
+    }
+    throw new ApiError(response.status, message);
   }
   return response.json() as Promise<T>;
+}
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
 }
 
 function formatCurrency(value: number) {
@@ -472,6 +553,49 @@ export async function getSalesReport(): Promise<SalesReportRow[]> {
   }
 }
 
+export async function getSalesKpis(params?: {
+  startDate?: string;
+  endDate?: string;
+  channel?: "online" | "store";
+}): Promise<SalesKpis> {
+  const normalizeDate = (value: string, endOfDay = false) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return endOfDay ? `${value}T23:59:59Z` : `${value}T00:00:00Z`;
+    }
+    return value;
+  };
+
+  const query = new URLSearchParams();
+  if (params?.startDate) query.set("start_date", normalizeDate(params.startDate, false));
+  if (params?.endDate) query.set("end_date", normalizeDate(params.endDate, true));
+  if (params?.channel) query.set("sales_channel", params.channel);
+  const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
+
+  try {
+    const response = await requestJson<ApiSalesKpis>(`/reports/kpis${suffix}`);
+    return {
+      totalOrders: response.total_orders,
+      ticketAverageLabel: formatCurrency(response.ticket_average),
+      unitsSold: response.units_sold,
+      totalRevenueLabel: formatCurrency(response.total_revenue),
+      topProducts: response.top_products.map((item) => ({
+        productSlug: item.product_slug,
+        productName: item.product_name,
+        units: item.total_units,
+        revenueLabel: formatCurrency(item.total_revenue)
+      }))
+    };
+  } catch {
+    return {
+      totalOrders: 0,
+      ticketAverageLabel: formatCurrency(0),
+      unitsSold: 0,
+      totalRevenueLabel: formatCurrency(0),
+      topProducts: []
+    };
+  }
+}
+
 export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
   try {
     const response = await requestJson<
@@ -540,6 +664,103 @@ export async function getAdminPromotions(): Promise<Promotion[]> {
   } catch {
     return getPromotions(false);
   }
+}
+
+export async function getAdminSuppliers(): Promise<Supplier[]> {
+  const response = await requestJson<
+    Array<{
+      id: string;
+      name: string;
+      country?: string | null;
+      organic_certification?: string | null;
+      materials?: string[] | null;
+      notes?: string | null;
+    }>
+  >("/admin/suppliers");
+
+  return response.map((row) => ({
+    id: row.id,
+    name: row.name,
+    country: row.country ?? null,
+    organicCertification: row.organic_certification ?? null,
+    materials: row.materials ?? [],
+    notes: row.notes ?? null
+  }));
+}
+
+export async function createAdminSupplier(payload: {
+  name: string;
+  country?: string;
+  organicCertification?: string;
+  materials: string[];
+  notes?: string;
+}): Promise<Supplier> {
+  const response = await requestJson<{
+    id: string;
+    name: string;
+    country?: string | null;
+    organic_certification?: string | null;
+    materials?: string[] | null;
+    notes?: string | null;
+  }>("/admin/suppliers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: payload.name,
+      country: payload.country ?? null,
+      organic_certification: payload.organicCertification ?? null,
+      materials: payload.materials,
+      notes: payload.notes ?? null
+    })
+  });
+
+  return {
+    id: response.id,
+    name: response.name,
+    country: response.country ?? null,
+    organicCertification: response.organic_certification ?? null,
+    materials: response.materials ?? [],
+    notes: response.notes ?? null
+  };
+}
+
+export async function updateAdminSupplier(
+  supplierId: string,
+  payload: {
+    name: string;
+    country?: string;
+    organicCertification?: string;
+    materials: string[];
+    notes?: string;
+  }
+): Promise<Supplier> {
+  const response = await requestJson<{
+    id: string;
+    name: string;
+    country?: string | null;
+    organic_certification?: string | null;
+    materials?: string[] | null;
+    notes?: string | null;
+  }>(`/admin/suppliers/${supplierId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: payload.name,
+      country: payload.country ?? null,
+      organic_certification: payload.organicCertification ?? null,
+      materials: payload.materials,
+      notes: payload.notes ?? null
+    })
+  });
+
+  return {
+    id: response.id,
+    name: response.name,
+    country: response.country ?? null,
+    organicCertification: response.organic_certification ?? null,
+    materials: response.materials ?? [],
+    notes: response.notes ?? null
+  };
 }
 
 export async function createAdminPromotion(payload: {
@@ -667,7 +888,10 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
   try {
     const data = await requestJson<ApiProductDetail[]>("/admin/products");
     return data.map(mapDetail);
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      throw error;
+    }
     return mockProducts.map(getFallbackCatalogProduct);
   }
 }
@@ -745,12 +969,18 @@ export async function signInClient(email: string, password: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: email, password })
     });
-    if (response.access_token && typeof window !== "undefined") {
+    if (!response.access_token) {
+      throw new Error("No se pudo iniciar sesion");
+    }
+    if (typeof window !== "undefined") {
       window.localStorage.setItem("ecowear_access_token", response.access_token);
     }
     return response;
-  } catch {
-    return { access_token: "", token_type: "bearer", user: { id: "", name: "", role: "client" as const } };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      throw new Error("Credenciales invalidas");
+    }
+    throw error instanceof Error ? error : new Error("No se pudo iniciar sesion");
   }
 }
 
@@ -768,12 +998,21 @@ export async function signInAdmin(username: string, password: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier: username, password })
     });
-    if (response.access_token && typeof window !== "undefined") {
+    if (!response.access_token) {
+      throw new Error("No se pudo iniciar sesion");
+    }
+    if (typeof window !== "undefined") {
       window.localStorage.setItem("ecowear_access_token", response.access_token);
     }
     return response;
-  } catch {
-    return { access_token: "", token_type: "bearer", user: { id: "", name: "", role: "admin" as const } };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      throw new Error("Credenciales invalidas");
+    }
+    if (error instanceof ApiError && error.status === 403) {
+      throw new Error("No tenes permisos de administrador");
+    }
+    throw error instanceof Error ? error : new Error("No se pudo iniciar sesion");
   }
 }
 
@@ -787,6 +1026,10 @@ export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutRe
       customer_email: payload.customerEmail,
       payment_method: payload.paymentMethod,
       notes: payload.notes,
+      redeem_points: payload.redeemPoints ?? null,
+      invoice_required: payload.invoiceRequired ?? null,
+      invoice_rfc: payload.invoiceRfc ?? null,
+      invoice_business_name: payload.invoiceBusinessName ?? null,
       items: payload.items.map((item) => ({
         product_slug: item.productSlug,
         variant_id: item.variantId,
@@ -808,6 +1051,12 @@ export async function submitStoreSale(payload: CheckoutInput): Promise<CheckoutR
       customer_email: payload.customerEmail,
       payment_method: payload.paymentMethod,
       notes: payload.notes,
+      store_name: payload.storeName ?? null,
+      seller: payload.seller ?? null,
+      redeem_points: payload.redeemPoints ?? null,
+      invoice_required: payload.invoiceRequired ?? null,
+      invoice_rfc: payload.invoiceRfc ?? null,
+      invoice_business_name: payload.invoiceBusinessName ?? null,
       items: payload.items.map((item) => ({
         product_slug: item.productSlug,
         variant_id: item.variantId,

@@ -201,3 +201,7 @@ on conflict (id) do update set
   promotion_type = excluded.promotion_type,
   discount_value = excluded.discount_value,
   is_active = excluded.is_active;
+
+update public.promotions
+set ends_at = timezone('utc', '2026-04-30 23:59:59'::timestamptz)
+where id = '99999999-9999-9999-9999-999999999999';

@@ -4,7 +4,10 @@ import { useCart } from "../components/CartContext";
 
 export function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
-  const loyaltyPreview = Math.floor(subtotal / 100) * 10;
+  const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
+  const estimatedPromotionDiscount = subtotal >= 5000 && distinctProducts >= 2 ? 350 : 0;
+  const estimatedTotal = Math.max(0, subtotal - estimatedPromotionDiscount);
+  const loyaltyPreview = Math.floor(estimatedTotal / 10);
 
   if (items.length === 0) {
     return (
@@ -133,14 +136,21 @@ export function CartPage() {
             <SummaryRow label="Piezas" value={String(items.length)} />
             <SummaryRow label="Subtotal" value={`$${subtotal.toLocaleString("es-MX")} MXN`} />
             <SummaryRow label="Envio" value="Gratis" />
-            <SummaryRow label="Puntos eco" value={`+${loyaltyPreview}`} valueClassName="text-secondary" />
+            {estimatedPromotionDiscount > 0 ? (
+              <SummaryRow
+                label="Promo combo (est.)"
+                value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
+                valueClassName="text-secondary"
+              />
+            ) : null}
+            <SummaryRow label="Puntos eco (est.)" value={`+${loyaltyPreview}`} valueClassName="text-secondary" />
           </div>
 
           <div className="mt-8">
             <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">
               Total estimado
             </p>
-            <p className="mt-3 text-3xl font-black">${subtotal.toLocaleString("es-MX")} MXN</p>
+            <p className="mt-3 text-3xl font-black">${estimatedTotal.toLocaleString("es-MX")} MXN</p>
           </div>
 
           <div className="mt-8 space-y-3">

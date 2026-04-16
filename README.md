@@ -101,6 +101,12 @@ Frontend (React/Vite):
 npm run dev:web
 ```
 
+Si PowerShell bloquea `npm` (ExecutionPolicy), usa `npm.cmd`:
+
+```powershell
+npm.cmd run dev:web
+```
+
 ### 3) Abrir la app
 
 - Frontend: normalmente `http://localhost:5173`

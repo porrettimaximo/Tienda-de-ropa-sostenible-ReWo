@@ -7,6 +7,7 @@ import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { AdminPromotionsPage } from "./pages/AdminPromotionsPage";
+import { AdminSuppliersPage } from "./pages/AdminSuppliersPage";
 import { CombosPage } from "./pages/CombosPage";
 import { CartPage } from "./pages/CartPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
@@ -122,6 +123,14 @@ function App() {
           element={
             <SiteShell>
               <StoreSalePage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/suppliers"
+          element={
+            <SiteShell>
+              <AdminSuppliersPage />
             </SiteShell>
           }
         />

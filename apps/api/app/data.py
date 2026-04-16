@@ -18,14 +18,16 @@ category_accessories = Category(
 supplier_oaxaca = Supplier(
     id="sup-oaxaca",
     name="Comunidades Oaxaquenas",
-    ethical_certification="Tejido artesanal certificado",
     country="Mexico",
+    organic_certification="Tejido artesanal certificado",
+    materials=["lino", "algodon organico"],
 )
 supplier_biotech = Supplier(
     id="sup-biotech",
     name="Bio-Tech Queretaro",
-    ethical_certification="Fibras recicladas de bajo impacto",
     country="Mexico",
+    organic_certification="Fibras recicladas de bajo impacto",
+    materials=["reciclados", "mezclas tecnicas"],
 )
 SUPPLIERS: list[Supplier] = [supplier_oaxaca, supplier_biotech]
 
@@ -324,9 +326,12 @@ def get_product_summaries(products: list[ProductDetail] | None = None) -> list[P
     source_products = products or PRODUCTS
     summaries: list[ProductSummary] = []
     for product in source_products:
-        colors = sorted({variant.color for variant in product.variants})
-        sizes = sorted({variant.size for variant in product.variants})
-        price_from = min(variant.price for variant in product.variants)
+        in_stock_variants = [variant for variant in product.variants if variant.stock > 0]
+        if not in_stock_variants:
+            continue
+        colors = sorted({variant.color for variant in in_stock_variants})
+        sizes = sorted({variant.size for variant in in_stock_variants})
+        price_from = min(variant.price for variant in in_stock_variants)
         summaries.append(
             ProductSummary(
                 id=product.id,

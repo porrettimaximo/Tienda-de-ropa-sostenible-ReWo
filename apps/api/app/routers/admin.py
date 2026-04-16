@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.domain import ProductDetail, Promotion
+from app.domain import ProductDetail, Promotion, Supplier
 from app.security import require_admin
 from app.schemas import (
     AdminProductResponse,
@@ -8,11 +8,13 @@ from app.schemas import (
     AdminVariantResponse,
     ProductUpsertRequest,
     PromotionUpsertRequest,
+    SupplierUpsertRequest,
     VariantUpsertRequest,
 )
 from app.services.catalog_service import CatalogService
-from app.services.dependencies import get_catalog_service, get_promotions_service
+from app.services.dependencies import get_catalog_service, get_promotions_service, get_suppliers_service
 from app.services.promotions_service import PromotionsService
+from app.services.suppliers_service import SuppliersService
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -94,3 +96,27 @@ def set_promotion_active(
     service: PromotionsService = Depends(get_promotions_service),
 ) -> AdminPromotionResponse:
     return service.set_active(promotion_id, is_active=is_active)
+
+
+@router.get("/suppliers", response_model=list[Supplier])
+def list_suppliers(
+    service: SuppliersService = Depends(get_suppliers_service),
+) -> list[Supplier]:
+    return service.list_suppliers()
+
+
+@router.post("/suppliers", response_model=Supplier)
+def create_supplier(
+    payload: SupplierUpsertRequest,
+    service: SuppliersService = Depends(get_suppliers_service),
+) -> Supplier:
+    return service.create_supplier(payload)
+
+
+@router.put("/suppliers/{supplier_id}", response_model=Supplier)
+def update_supplier(
+    supplier_id: str,
+    payload: SupplierUpsertRequest,
+    service: SuppliersService = Depends(get_suppliers_service),
+) -> Supplier:
+    return service.update_supplier(supplier_id, payload)

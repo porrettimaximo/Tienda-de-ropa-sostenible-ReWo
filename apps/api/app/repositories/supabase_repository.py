@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -17,12 +18,15 @@ from app.domain import (
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
+    SalesKpisReport,
     Supplier,
+    TopProductKpi,
 )
 from app.schemas import (
     CheckoutRequest,
     ProductUpsertRequest,
     PromotionUpsertRequest,
+    SupplierUpsertRequest,
     VariantUpsertRequest,
 )
 from app.services.supabase_client import get_supabase_service_client
@@ -51,13 +55,13 @@ class SupabaseRepository:
                 name=product.name,
                 slug=product.slug,
                 category=product.category.name,
-                price_from=min(variant.price for variant in product.variants),
+                price_from=min(variant.price for variant in product.variants if variant.stock > 0),
                 sustainability_label=product.sustainability_label,
-                available_colors=sorted({variant.color for variant in product.variants}),
-                available_sizes=sorted({variant.size for variant in product.variants}),
+                available_colors=sorted({variant.color for variant in product.variants if variant.stock > 0}),
+                available_sizes=sorted({variant.size for variant in product.variants if variant.stock > 0}),
             )
             for product in self.list_product_details()
-            if product.variants
+            if any(variant.stock > 0 for variant in product.variants)
         ]
 
     def list_product_details(self) -> list[ProductDetail]:
@@ -75,8 +79,10 @@ class SupabaseRepository:
             row["id"]: Supplier(
                 id=row["id"],
                 name=row["name"],
-                ethical_certification=row.get("ethical_certification"),
                 country=row.get("country"),
+                organic_certification=row.get("ethical_certification") or row.get("organic_certification"),
+                materials=row.get("materials") or [],
+                notes=row.get("notes"),
             )
             for row in suppliers_rows
         }
@@ -158,11 +164,13 @@ class SupabaseRepository:
         if not rows:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         row = rows[0]
+        self._ensure_loyalty_bootstrap(customer_id=row["id"], current_points=int(row.get("loyalty_points") or 0))
+        available_points = self._get_available_loyalty_points(row["id"])
         return LoyaltyCustomer(
             id=row["id"],
             full_name=row["full_name"],
             email=row.get("email"),
-            loyalty_points=row["loyalty_points"],
+            loyalty_points=available_points,
         )
 
     def list_customer_orders(self, customer_id: str) -> list[OrderSummary]:
@@ -213,13 +221,22 @@ class SupabaseRepository:
                 sales_channel=row["sales_channel"],
                 customer_id=customer.id,
                 customer_name=customer.full_name,
+                created_at=self._parse_ts(row.get("created_at")),
                 subtotal=float(row["subtotal"]),
+                promotion_discount_total=float(row.get("promotion_discount_total") or row.get("discount_total") or 0),
+                loyalty_discount_total=float(row.get("loyalty_discount_total") or 0),
                 discount_total=float(row.get("discount_total") or 0),
                 total=float(row["total"]),
                 promotion_label=row.get("promotion_label")
                 or ("Promo aplicada" if float(row.get("discount_total") or 0) > 0 else None),
                 loyalty_points_earned=row.get("loyalty_points_earned", 0),
                 payment_method=row.get("payment_method"),
+                store_name=row.get("store_name"),
+                seller=row.get("seller"),
+                invoice_required=row.get("invoice_required"),
+                invoice_rfc=row.get("invoice_rfc"),
+                invoice_business_name=row.get("invoice_business_name"),
+                redeemed_points=row.get("redeemed_points") or 0,
                 notes=row.get("notes"),
                 items=items_by_order.get(row["id"], []),
             )
@@ -313,6 +330,17 @@ class SupabaseRepository:
         if not payload.items:
             raise HTTPException(status_code=400, detail="Debes enviar items")
 
+        invoice_required = bool(payload.invoice_required)
+        if invoice_required:
+            if not payload.invoice_rfc or not payload.invoice_business_name:
+                raise HTTPException(status_code=400, detail="Faltan datos de factura (RFC / razon social)")
+
+        if sales_channel == "store":
+            if not payload.store_name or not payload.seller:
+                raise HTTPException(status_code=400, detail="Venta tienda requiere sucursal y vendedor")
+            if payload.payment_method is None:
+                raise HTTPException(status_code=400, detail="Venta tienda requiere metodo de pago")
+
         customer = None
         if payload.customer_id:
             customer = self.get_customer(payload.customer_id)
@@ -354,10 +382,33 @@ class SupabaseRepository:
             product_slugs=product_slugs,
             promotions=self.list_promotions(active_only=True),
         )
-        discount_total = applied_promo.discount_total if applied_promo else 0.0
-        total = max(0.0, subtotal - discount_total)
+        promotion_discount_total = applied_promo.discount_total if applied_promo else 0.0
+        total_after_promo = max(0.0, subtotal - promotion_discount_total)
 
-        loyalty_points = int(total // 100) * 10
+        redeemed_points = 0
+        loyalty_discount_total = 0.0
+        if payload.redeem_points:
+            if customer is None:
+                raise HTTPException(status_code=400, detail="Solo clientes registrados pueden canjear puntos")
+            self._ensure_loyalty_bootstrap(customer_id=customer.id, current_points=customer.loyalty_points)
+            available_points = self._get_available_loyalty_points(customer.id)
+            if payload.redeem_points % 500 != 0:
+                raise HTTPException(status_code=400, detail="Los puntos se canjean en bloques de 500")
+            if payload.redeem_points > available_points:
+                raise HTTPException(status_code=400, detail="Puntos insuficientes")
+
+            requested_discount = (payload.redeem_points // 500) * 100
+            max_redeem_points_by_total = int(total_after_promo // 100) * 500
+            if payload.redeem_points > max_redeem_points_by_total:
+                raise HTTPException(status_code=400, detail="El canje supera el total de la compra")
+
+            redeemed_points = payload.redeem_points
+            loyalty_discount_total = float(requested_discount)
+
+        total = max(0.0, total_after_promo - loyalty_discount_total)
+        discount_total = promotion_discount_total + loyalty_discount_total
+
+        loyalty_points = int(total // 10)
         order_id = str(uuid4())
         client.table("orders").insert(
             {
@@ -366,10 +417,19 @@ class SupabaseRepository:
                 "sales_channel": sales_channel,
                 "status": "paid",
                 "subtotal": subtotal,
+                "promotion_discount_total": promotion_discount_total,
+                "loyalty_discount_total": loyalty_discount_total,
                 "discount_total": discount_total,
                 "total": total,
                 "loyalty_points_earned": loyalty_points,
                 "promotion_label": applied_promo.label if applied_promo else None,
+                "redeemed_points": redeemed_points,
+                "payment_method": payload.payment_method,
+                "store_name": payload.store_name,
+                "seller": payload.seller,
+                "invoice_required": payload.invoice_required,
+                "invoice_rfc": payload.invoice_rfc,
+                "invoice_business_name": payload.invoice_business_name,
                 "notes": payload.notes,
             }
         ).execute()
@@ -389,7 +449,37 @@ class SupabaseRepository:
             ).execute()
 
         if customer is not None:
-            client.table("customers").update({"loyalty_points": customer.loyalty_points + loyalty_points}).eq("id", customer.id).execute()
+            self._ensure_loyalty_bootstrap(customer_id=customer.id, current_points=customer.loyalty_points)
+
+            new_points = self._get_available_loyalty_points(customer.id)
+            if redeemed_points:
+                client.table("loyalty_movements").insert(
+                    {
+                        "id": str(uuid4()),
+                        "customer_id": customer.id,
+                        "order_id": order_id,
+                        "movement_type": "redeem",
+                        "points": -int(redeemed_points),
+                        "reason": "Canje de puntos",
+                    }
+                ).execute()
+                new_points -= int(redeemed_points)
+
+            if loyalty_points:
+                client.table("loyalty_movements").insert(
+                    {
+                        "id": str(uuid4()),
+                        "customer_id": customer.id,
+                        "order_id": order_id,
+                        "movement_type": "earn",
+                        "points": int(loyalty_points),
+                        "expires_at": (self._now_utc() + timedelta(days=365)).isoformat(),
+                        "reason": "Compra registrada",
+                    }
+                ).execute()
+                new_points += int(loyalty_points)
+
+            client.table("customers").update({"loyalty_points": max(0, new_points)}).eq("id", customer.id).execute()
 
         return OrderSummary(
             id=order_id,
@@ -397,11 +487,19 @@ class SupabaseRepository:
             customer_id=customer.id if customer else payload.customer_id,
             customer_name=customer.full_name if customer else payload.customer_name,
             subtotal=subtotal,
+            promotion_discount_total=promotion_discount_total,
+            loyalty_discount_total=loyalty_discount_total,
             discount_total=discount_total,
             total=total,
             promotion_label=applied_promo.label if applied_promo else None,
+            redeemed_points=redeemed_points,
             loyalty_points_earned=loyalty_points,
             payment_method=payload.payment_method,
+            store_name=payload.store_name,
+            seller=payload.seller,
+            invoice_required=payload.invoice_required,
+            invoice_rfc=payload.invoice_rfc,
+            invoice_business_name=payload.invoice_business_name,
             notes=payload.notes,
             items=items,
         )
@@ -418,6 +516,64 @@ class SupabaseRepository:
                 total_revenue=float(row["total_revenue"]),
             )
             for row in rows
+        ]
+
+    def get_sales_report_filtered(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> list[SalesByVariantReport]:
+        client = self._client()
+        query = client.table("orders").select("id,sales_channel,status,created_at")
+        if sales_channel:
+            query = query.eq("sales_channel", sales_channel)
+        if start_date:
+            query = query.gte("created_at", start_date.isoformat())
+        if end_date:
+            query = query.lte("created_at", end_date.isoformat())
+
+        orders_rows = query.execute().data or []
+        orders_rows = [row for row in orders_rows if row.get("status") in ("paid", "completed")]
+        if not orders_rows:
+            return []
+
+        order_channel = {row["id"]: row["sales_channel"] for row in orders_rows}
+        order_ids = list(order_channel.keys())
+        items_rows = client.table("order_items").select("order_id,variant_id,quantity,total_price").in_("order_id", order_ids).execute().data or []
+        if not items_rows:
+            return []
+
+        variant_ids = sorted({row["variant_id"] for row in items_rows})
+        variants_rows = client.table("product_variants").select("id,size,color").in_("id", variant_ids).execute().data or []
+        variant_map = {row["id"]: (row["size"], row["color"]) for row in variants_rows}
+
+        totals: dict[tuple[str, str, str], tuple[int, float]] = {}
+        for row in items_rows:
+            variant_id = row["variant_id"]
+            size_color = variant_map.get(variant_id)
+            if not size_color:
+                continue
+            size, color = size_color
+            channel = order_channel.get(row["order_id"])
+            if not channel:
+                continue
+            qty = int(row.get("quantity") or 0)
+            revenue = float(row.get("total_price") or 0)
+            key = (size, color, channel)
+            units, total_rev = totals.get(key, (0, 0.0))
+            totals[key] = (units + qty, total_rev + revenue)
+
+        return [
+            SalesByVariantReport(
+                size=size,
+                color=color,
+                sales_channel=channel,  # type: ignore[arg-type]
+                total_units=units,
+                total_revenue=revenue,
+            )
+            for (size, color, channel), (units, revenue) in totals.items()
         ]
 
     def get_admin_overview(self) -> AdminOverview:
@@ -438,28 +594,96 @@ class SupabaseRepository:
             Supplier(
                 id=row["id"],
                 name=row["name"],
-                ethical_certification=row.get("ethical_certification"),
                 country=row.get("country"),
+                organic_certification=row.get("ethical_certification") or row.get("organic_certification"),
+                materials=row.get("materials") or [],
+                notes=row.get("notes"),
             )
             for row in rows
         ]
 
+    def create_supplier(self, payload: SupplierUpsertRequest) -> Supplier:
+        client = self._client()
+        supplier_id = str(uuid4())
+        inserted = (
+            client.table("suppliers")
+            .insert(
+                {
+                    "id": supplier_id,
+                    "name": payload.name,
+                    "country": payload.country,
+                    "ethical_certification": payload.organic_certification,
+                    "materials": payload.materials,
+                    "notes": payload.notes,
+                }
+            )
+            .execute()
+            .data
+        )
+        if not inserted:
+            raise HTTPException(status_code=500, detail="No se pudo crear el proveedor")
+        rows = client.table("suppliers").select("*").eq("id", supplier_id).limit(1).execute().data or []
+        row = rows[0]
+        return Supplier(
+            id=row["id"],
+            name=row["name"],
+            country=row.get("country"),
+            organic_certification=row.get("ethical_certification") or row.get("organic_certification"),
+            materials=row.get("materials") or [],
+            notes=row.get("notes"),
+        )
+
+    def update_supplier(self, supplier_id: str, payload: SupplierUpsertRequest) -> Supplier:
+        client = self._client()
+        client.table("suppliers").update(
+            {
+                "name": payload.name,
+                "country": payload.country,
+                "ethical_certification": payload.organic_certification,
+                "materials": payload.materials,
+                "notes": payload.notes,
+            }
+        ).eq("id", supplier_id).execute()
+        rows = client.table("suppliers").select("*").eq("id", supplier_id).limit(1).execute().data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+        row = rows[0]
+        return Supplier(
+            id=row["id"],
+            name=row["name"],
+            country=row.get("country"),
+            organic_certification=row.get("ethical_certification") or row.get("organic_certification"),
+            materials=row.get("materials") or [],
+            notes=row.get("notes"),
+        )
+
     def list_promotions(self, active_only: bool = True) -> list[Promotion]:
         client = self._client()
         query = client.table("promotions").select("*")
-        if active_only:
-            query = query.eq("is_active", True)
         rows = query.execute().data or []
-        return [
+        promotions = [
             Promotion(
                 id=row["id"],
                 name=row["name"],
                 description=row.get("description"),
                 promotion_type=row["promotion_type"],
                 discount_value=float(row.get("discount_value") or 0),
+                starts_at=self._parse_ts(row.get("starts_at")),
+                ends_at=self._parse_ts(row.get("ends_at")),
                 is_active=row.get("is_active", True),
             )
             for row in rows
+        ]
+        if not active_only:
+            return promotions
+
+        now = self._now_utc()
+        return [
+            promo
+            for promo in promotions
+            if promo.is_active
+            and (promo.starts_at is None or promo.starts_at <= now)
+            and (promo.ends_at is None or promo.ends_at >= now)
         ]
 
     def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion:
@@ -474,6 +698,8 @@ class SupabaseRepository:
                     "description": payload.description,
                     "promotion_type": payload.promotion_type,
                     "discount_value": payload.discount_value,
+                    "starts_at": payload.starts_at.isoformat() if payload.starts_at else None,
+                    "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
                     "is_active": payload.is_active,
                 }
             )
@@ -490,6 +716,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            starts_at=self._parse_ts(row.get("starts_at")),
+            ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
         )
 
@@ -501,6 +729,8 @@ class SupabaseRepository:
                 "description": payload.description,
                 "promotion_type": payload.promotion_type,
                 "discount_value": payload.discount_value,
+                "starts_at": payload.starts_at.isoformat() if payload.starts_at else None,
+                "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
                 "is_active": payload.is_active,
             }
         ).eq("id", promotion_id).execute()
@@ -514,6 +744,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            starts_at=self._parse_ts(row.get("starts_at")),
+            ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
         )
 
@@ -530,6 +762,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            starts_at=self._parse_ts(row.get("starts_at")),
+            ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
         )
 
@@ -540,12 +774,157 @@ class SupabaseRepository:
         if not rows:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         row = rows[0]
+        self._ensure_loyalty_bootstrap(customer_id=row["id"], current_points=int(row.get("loyalty_points") or 0))
+        available_points = self._get_available_loyalty_points(row["id"])
         return LoyaltyCustomer(
             id=row["id"],
             full_name=row["full_name"],
             email=row.get("email"),
-            loyalty_points=row["loyalty_points"],
+            loyalty_points=available_points,
         )
+
+    def get_sales_kpis(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> SalesKpisReport:
+        client = self._client()
+        query = client.table("orders").select("*")
+        if sales_channel:
+            query = query.eq("sales_channel", sales_channel)
+        if start_date:
+            query = query.gte("created_at", start_date.isoformat())
+        if end_date:
+            query = query.lte("created_at", end_date.isoformat())
+
+        orders_rows = query.order("created_at", desc=True).execute().data or []
+        orders_rows = [row for row in orders_rows if row.get("status") in ("paid", "completed")]
+        if not orders_rows:
+            return SalesKpisReport(
+                sales_channel=sales_channel,  # type: ignore[arg-type]
+                start_date=start_date,
+                end_date=end_date,
+                total_orders=0,
+                ticket_average=0,
+                units_sold=0,
+                total_revenue=0,
+                top_products=[],
+            )
+
+        order_ids = [row["id"] for row in orders_rows]
+        items_rows = client.table("order_items").select("*").in_("order_id", order_ids).execute().data or []
+
+        products = {product.id: product for product in self.list_product_details()}
+
+        total_orders = len(orders_rows)
+        total_revenue = float(sum(float(row.get("total") or 0) for row in orders_rows))
+        ticket_average = float(total_revenue / total_orders) if total_orders else 0.0
+
+        units_sold = 0
+        product_units: dict[tuple[str, str], int] = {}
+        product_revenue: dict[tuple[str, str], float] = {}
+
+        for row in items_rows:
+            product = products.get(row["product_id"])
+            if product is None:
+                continue
+            qty = int(row.get("quantity") or 0)
+            revenue = float(row.get("total_price") or 0)
+            units_sold += qty
+            key = (product.slug, product.name)
+            product_units[key] = product_units.get(key, 0) + qty
+            product_revenue[key] = product_revenue.get(key, 0.0) + revenue
+
+        top_products = sorted(
+            [
+                TopProductKpi(
+                    product_slug=slug,
+                    product_name=name,
+                    total_units=product_units[(slug, name)],
+                    total_revenue=product_revenue[(slug, name)],
+                )
+                for (slug, name) in product_units.keys()
+            ],
+            key=lambda item: (item.total_units, item.total_revenue),
+            reverse=True,
+        )[:5]
+
+        return SalesKpisReport(
+            sales_channel=sales_channel,  # type: ignore[arg-type]
+            start_date=start_date,
+            end_date=end_date,
+            total_orders=total_orders,
+            ticket_average=ticket_average,
+            units_sold=units_sold,
+            total_revenue=total_revenue,
+            top_products=top_products,
+        )
+
+    def _now_utc(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    def _parse_ts(self, value: object) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        text = str(value)
+        if not text:
+            return None
+        try:
+            return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    def _ensure_loyalty_bootstrap(self, *, customer_id: str, current_points: int) -> None:
+        client = self._client()
+        existing = (
+            client.table("loyalty_movements")
+            .select("id")
+            .eq("customer_id", customer_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if existing:
+            return
+        if current_points <= 0:
+            return
+        client.table("loyalty_movements").insert(
+            {
+                "id": str(uuid4()),
+                "customer_id": customer_id,
+                "movement_type": "adjustment",
+                "points": int(current_points),
+                "expires_at": (self._now_utc() + timedelta(days=365)).isoformat(),
+                "reason": "Migracion puntos existentes",
+            }
+        ).execute()
+
+    def _get_available_loyalty_points(self, customer_id: str) -> int:
+        client = self._client()
+        rows = (
+            client.table("loyalty_movements")
+            .select("points,movement_type,expires_at")
+            .eq("customer_id", customer_id)
+            .execute()
+            .data
+            or []
+        )
+        now = self._now_utc()
+        total = 0
+        for row in rows:
+            points = int(row.get("points") or 0)
+            movement_type = row.get("movement_type")
+            expires_at = self._parse_ts(row.get("expires_at"))
+            if movement_type == "earn" or movement_type == "adjustment":
+                if expires_at is not None and expires_at < now:
+                    continue
+            total += points
+        return max(0, total)
 
     def _client(self):
         if self.client is None:

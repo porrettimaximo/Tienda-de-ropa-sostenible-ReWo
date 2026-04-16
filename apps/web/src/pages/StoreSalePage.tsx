@@ -27,27 +27,40 @@ export function StoreSalePage() {
   const [customerName, setCustomerName] = useState("Cliente mostrador");
   const [paymentMethod, setPaymentMethod] = useState("Tarjeta");
   const [loyaltyEmail, setLoyaltyEmail] = useState("maria@ecowear.mx");
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [invoiceRequired, setInvoiceRequired] = useState(false);
+  const [invoiceRfc, setInvoiceRfc] = useState("");
+  const [invoiceBusinessName, setInvoiceBusinessName] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
 
-    getAdminProducts().then((data) => {
-      if (!active) return;
+    getAdminProducts()
+      .then((data) => {
+        if (!active) return;
 
-      setProducts(data);
-      setSelectedVariantByProduct(
-        Object.fromEntries(
-          data.map((product) => [product.slug, product.variants[0]?.id ?? ""])
-        )
-      );
-      setQuantityByProduct(
-        Object.fromEntries(
-          data.map((product) => [product.slug, 1])
-        )
-      );
-    });
+        setProducts(data);
+        setSelectedVariantByProduct(
+          Object.fromEntries(
+            data.map((product) => [product.slug, product.variants[0]?.id ?? ""])
+          )
+        );
+        setQuantityByProduct(
+          Object.fromEntries(
+            data.map((product) => [product.slug, 1])
+          )
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        setError(
+          error instanceof Error
+            ? `${error.message}. Inicia sesion en /admin/login.`
+            : "Necesitas iniciar sesion admin en /admin/login."
+        );
+      });
 
     return () => {
       active = false;
@@ -55,7 +68,13 @@ export function StoreSalePage() {
   }, []);
 
   const total = ticket.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const loyaltyPreview = Math.floor(total / 100) * 10;
+  const redeemablePoints = redeemPoints > 0 ? Math.floor(redeemPoints / 500) * 500 : 0;
+  const loyaltyDiscountPreview = redeemablePoints > 0 ? Math.floor(redeemablePoints / 500) * 100 : 0;
+  const maxRedeemPointsByTotal = Math.floor(total / 100) * 500;
+  const effectiveRedeemPoints = Math.min(redeemablePoints, maxRedeemPointsByTotal);
+  const effectiveLoyaltyDiscount = effectiveRedeemPoints > 0 ? Math.floor(effectiveRedeemPoints / 500) * 100 : 0;
+  const finalTotalPreview = Math.max(0, total - effectiveLoyaltyDiscount);
+  const loyaltyPreview = Math.floor(finalTotalPreview / 10);
 
   function getSelectedVariant(product: AdminProduct): CatalogVariant | undefined {
     const variantId = selectedVariantByProduct[product.slug];
@@ -107,7 +126,13 @@ export function StoreSalePage() {
         customerName,
         customerEmail: loyaltyEmail,
         paymentMethod,
-        notes: `Venta mostrador / ${storeName} / ${seller}`,
+        storeName,
+        seller,
+        redeemPoints: effectiveRedeemPoints > 0 ? effectiveRedeemPoints : undefined,
+        invoiceRequired,
+        invoiceRfc: invoiceRequired ? invoiceRfc : undefined,
+        invoiceBusinessName: invoiceRequired ? invoiceBusinessName : undefined,
+        notes: "Venta mostrador",
         items: ticket.map((item) => ({
           productSlug: item.productSlug,
           variantId: item.variantId,
@@ -159,17 +184,56 @@ export function StoreSalePage() {
               onChange={(event) => setCustomerName(event.target.value)}
               value={customerName}
             />
-            <input
+            <select
               className="border border-outline/30 px-4 py-4 text-sm"
               onChange={(event) => setPaymentMethod(event.target.value)}
               value={paymentMethod}
-            />
+            >
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="TDD">TDD</option>
+            </select>
             <input
               className="border border-outline/30 px-4 py-4 text-sm"
               onChange={(event) => setLoyaltyEmail(event.target.value)}
               value={loyaltyEmail}
             />
+            <input
+              className="border border-outline/30 px-4 py-4 text-sm"
+              min={0}
+              onChange={(event) => setRedeemPoints(Number(event.target.value) || 0)}
+              placeholder="Canjear puntos (multiplo de 500)"
+              type="number"
+              value={redeemPoints}
+            />
           </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              checked={invoiceRequired}
+              className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface"
+              onChange={(event) => setInvoiceRequired(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="text-sm">Requiere factura</span>
+          </div>
+
+          {invoiceRequired ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <input
+                className="border border-outline/30 px-4 py-4 text-sm"
+                onChange={(event) => setInvoiceRfc(event.target.value)}
+                placeholder="RFC"
+                value={invoiceRfc}
+              />
+              <input
+                className="border border-outline/30 px-4 py-4 text-sm"
+                onChange={(event) => setInvoiceBusinessName(event.target.value)}
+                placeholder="Razon social"
+                value={invoiceBusinessName}
+              />
+            </div>
+          ) : null}
 
           <div className="border-t border-outline-variant/30 pt-8">
             <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
@@ -205,7 +269,7 @@ export function StoreSalePage() {
                         }
                         value={selectedVariant?.id ?? ""}
                       >
-                        {product.variants.map((variant) => (
+                        {product.variants.filter((variant) => variant.stock > 0).map((variant) => (
                           <option key={variant.id} value={variant.id}>
                             {variant.color} / {variant.size} / stock {variant.stock}
                           </option>
@@ -266,8 +330,14 @@ export function StoreSalePage() {
               <span>Puntos Eco generados</span>
               <span>+{loyaltyPreview}</span>
             </div>
+            {effectiveLoyaltyDiscount > 0 ? (
+              <div className="flex justify-between text-sm text-secondary">
+                <span>Canje puntos</span>
+                <span>-${effectiveLoyaltyDiscount.toLocaleString("es-MX")} MXN</span>
+              </div>
+            ) : null}
           </div>
-          <p className="mt-8 text-3xl font-black">${total.toLocaleString("es-MX")} MXN</p>
+          <p className="mt-8 text-3xl font-black">${finalTotalPreview.toLocaleString("es-MX")} MXN</p>
           <button
             className="mt-8 w-full bg-inverse-surface px-8 py-4 text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary"
             onClick={handleSubmitSale}

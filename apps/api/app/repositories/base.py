@@ -1,19 +1,28 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 
 from app.domain import (
     AdminOverview,
     AuthUser,
     LoyaltyCustomer,
+    OrderSummary,
     Promotion,
     ProductDetail,
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
+    SalesKpisReport,
     Supplier,
 )
-from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest, PromotionUpsertRequest
+from app.schemas import (
+    CheckoutRequest,
+    ProductUpsertRequest,
+    PromotionUpsertRequest,
+    SupplierUpsertRequest,
+    VariantUpsertRequest,
+)
 
 
 class EcommerceRepository(Protocol):
@@ -33,8 +42,24 @@ class EcommerceRepository(Protocol):
     ) -> ProductVariant: ...
     def checkout(self, payload: CheckoutRequest, sales_channel: str): ...
     def get_sales_report(self) -> list[SalesByVariantReport]: ...
+    def get_sales_report_filtered(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> list[SalesByVariantReport]: ...
+    def get_sales_kpis(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> SalesKpisReport: ...
     def get_admin_overview(self) -> AdminOverview: ...
     def list_suppliers(self) -> list[Supplier]: ...
+    def create_supplier(self, payload: SupplierUpsertRequest) -> Supplier: ...
+    def update_supplier(self, supplier_id: str, payload: SupplierUpsertRequest) -> Supplier: ...
     def list_promotions(self, active_only: bool = True) -> list[Promotion]: ...
     def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion: ...
     def update_promotion(self, promotion_id: str, payload: PromotionUpsertRequest) -> Promotion: ...

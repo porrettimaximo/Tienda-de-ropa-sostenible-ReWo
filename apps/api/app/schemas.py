@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.domain import (
     AdminOverview,
     AuthUser,
+    PaymentMethod,
     OrderSummary,
     ProductDetail,
     ProductVariant,
@@ -44,8 +47,14 @@ class CheckoutRequest(BaseModel):
     customer_id: str | None = None
     customer_name: str | None = None
     customer_email: str | None = None
-    payment_method: str | None = None
+    payment_method: PaymentMethod | None = None
     notes: str | None = None
+    redeem_points: int | None = Field(default=None, ge=0)
+    store_name: str | None = None
+    seller: str | None = None
+    invoice_required: bool | None = None
+    invoice_rfc: str | None = None
+    invoice_business_name: str | None = None
     items: list[CheckoutItemRequest]
 
 
@@ -66,11 +75,22 @@ class VariantUpsertRequest(BaseModel):
     stock: int = Field(ge=0)
     price: float = Field(ge=0)
 
+
+class SupplierUpsertRequest(BaseModel):
+    name: str = Field(min_length=1)
+    country: str | None = None
+    organic_certification: str | None = None
+    materials: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
 class PromotionUpsertRequest(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
     promotion_type: PromotionType
     discount_value: float = Field(ge=0)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
     is_active: bool = True
 
 

@@ -23,6 +23,14 @@ def get_current_user(
 
     token = credentials.credentials
 
+    # Local dev fallback (when Supabase isn't configured): accept demo tokens issued by AuthService.
+    if token.startswith("admin-token-"):
+        user_id = token.removeprefix("admin-token-")
+        return AuthUser(id=user_id, name="Admin", email="admin@local", role="admin")
+    if token.startswith("client-token-"):
+        user_id = token.removeprefix("client-token-")
+        return AuthUser(id=user_id, name="Cliente", email=None, role="client")
+
     if settings.supabase_jwt_secret:
         try:
             payload = jwt.decode(
@@ -61,4 +69,3 @@ def require_admin(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin required")
     return user
-

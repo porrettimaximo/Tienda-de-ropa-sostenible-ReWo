@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from copy import deepcopy
 from uuid import uuid4
 
@@ -17,9 +18,17 @@ from app.domain import (
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
+    SalesKpisReport,
     Supplier,
+    TopProductKpi,
 )
-from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest, PromotionUpsertRequest
+from app.schemas import (
+    CheckoutRequest,
+    ProductUpsertRequest,
+    PromotionUpsertRequest,
+    SupplierUpsertRequest,
+    VariantUpsertRequest,
+)
 from app.services.promotions import apply_best_promotion
 
 
@@ -45,6 +54,7 @@ class MemoryRepository:
                 description="-$350 MXN en compras desde $5,000 con 2 productos distintos.",
                 promotion_type="combo",
                 discount_value=350,
+                ends_at=datetime(2026, 4, 30, 23, 59, 59, tzinfo=timezone.utc),
                 is_active=True,
             )
         ]
@@ -184,6 +194,18 @@ class MemoryRepository:
     def checkout(self, payload: CheckoutRequest, sales_channel: str) -> OrderSummary:
         if not payload.items:
             raise HTTPException(status_code=400, detail="Debes enviar items")
+
+        invoice_required = bool(payload.invoice_required)
+        if invoice_required:
+            if not payload.invoice_rfc or not payload.invoice_business_name:
+                raise HTTPException(status_code=400, detail="Faltan datos de factura (RFC / razon social)")
+
+        if sales_channel == "store":
+            if not payload.store_name or not payload.seller:
+                raise HTTPException(status_code=400, detail="Venta tienda requiere sucursal y vendedor")
+            if payload.payment_method is None:
+                raise HTTPException(status_code=400, detail="Venta tienda requiere metodo de pago")
+
         items: list[OrderItem] = []
         subtotal = 0.0
         product_slugs: list[str] = []
@@ -221,10 +243,32 @@ class MemoryRepository:
             product_slugs=product_slugs,
             promotions=self.list_promotions(active_only=True),
         )
-        discount_total = applied_promo.discount_total if applied_promo else 0.0
-        total = max(0.0, subtotal - discount_total)
+        promotion_discount_total = applied_promo.discount_total if applied_promo else 0.0
+        total_after_promo = max(0.0, subtotal - promotion_discount_total)
 
-        loyalty_points = int(total // 100) * 10
+        redeemed_points = 0
+        loyalty_discount_total = 0.0
+        if payload.redeem_points:
+            if customer is None:
+                raise HTTPException(status_code=400, detail="Solo clientes registrados pueden canjear puntos")
+            if payload.redeem_points % 500 != 0:
+                raise HTTPException(status_code=400, detail="Los puntos se canjean en bloques de 500")
+            if payload.redeem_points > customer.loyalty_points:
+                raise HTTPException(status_code=400, detail="Puntos insuficientes")
+
+            requested_discount = (payload.redeem_points // 500) * 100
+            max_redeem_points_by_total = int(total_after_promo // 100) * 500
+            if payload.redeem_points > max_redeem_points_by_total:
+                raise HTTPException(status_code=400, detail="El canje supera el total de la compra")
+
+            redeemed_points = payload.redeem_points
+            loyalty_discount_total = float(requested_discount)
+            customer.loyalty_points -= redeemed_points
+
+        total = max(0.0, total_after_promo - loyalty_discount_total)
+        discount_total = promotion_discount_total + loyalty_discount_total
+
+        loyalty_points = int(total // 10)
         if customer is not None:
             customer.loyalty_points += loyalty_points
         order = OrderSummary(
@@ -232,12 +276,21 @@ class MemoryRepository:
             sales_channel=sales_channel,  # type: ignore[arg-type]
             customer_id=customer.id if customer else payload.customer_id,
             customer_name=customer.full_name if customer else payload.customer_name,
+            created_at=datetime.now(timezone.utc),
             subtotal=subtotal,
+            promotion_discount_total=promotion_discount_total,
+            loyalty_discount_total=loyalty_discount_total,
             discount_total=discount_total,
             total=total,
             promotion_label=applied_promo.label if applied_promo else None,
+            redeemed_points=redeemed_points,
             loyalty_points_earned=loyalty_points,
             payment_method=payload.payment_method,
+            store_name=payload.store_name,
+            seller=payload.seller,
+            invoice_required=payload.invoice_required,
+            invoice_rfc=payload.invoice_rfc,
+            invoice_business_name=payload.invoice_business_name,
             notes=payload.notes,
             items=items,
         )
@@ -246,6 +299,39 @@ class MemoryRepository:
 
     def get_sales_report(self) -> list[SalesByVariantReport]:
         return self.sales_report
+
+    def get_sales_report_filtered(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> list[SalesByVariantReport]:
+        filtered = self.orders
+        if sales_channel:
+            filtered = [order for order in filtered if order.sales_channel == sales_channel]  # type: ignore[comparison-overlap]
+        if start_date:
+            filtered = [order for order in filtered if order.created_at and order.created_at >= start_date]
+        if end_date:
+            filtered = [order for order in filtered if order.created_at and order.created_at <= end_date]
+
+        totals: dict[tuple[str, str, str], tuple[int, float]] = {}
+        for order in filtered:
+            for item in order.items:
+                key = (item.size, item.color, order.sales_channel)
+                units, revenue = totals.get(key, (0, 0.0))
+                totals[key] = (units + item.quantity, revenue + item.line_total)
+
+        return [
+            SalesByVariantReport(
+                size=size,
+                color=color,
+                sales_channel=channel,  # type: ignore[arg-type]
+                total_units=units,
+                total_revenue=revenue,
+            )
+            for (size, color, channel), (units, revenue) in totals.items()
+        ]
 
     def get_admin_overview(self) -> AdminOverview:
         low_stock_variants = sum(1 for product in self.products for variant in product.variants if variant.stock <= 3)
@@ -260,10 +346,44 @@ class MemoryRepository:
     def list_suppliers(self) -> list[Supplier]:
         return self.suppliers
 
+    def create_supplier(self, payload: SupplierUpsertRequest) -> Supplier:
+        supplier = Supplier(
+            id=f"sup-{uuid4().hex[:10]}",
+            name=payload.name,
+            country=payload.country,
+            organic_certification=payload.organic_certification,
+            materials=payload.materials,
+            notes=payload.notes,
+        )
+        self.suppliers.append(supplier)
+        return supplier
+
+    def update_supplier(self, supplier_id: str, payload: SupplierUpsertRequest) -> Supplier:
+        for index, supplier in enumerate(self.suppliers):
+            if supplier.id == supplier_id:
+                updated = Supplier(
+                    id=supplier.id,
+                    name=payload.name,
+                    country=payload.country,
+                    organic_certification=payload.organic_certification,
+                    materials=payload.materials,
+                    notes=payload.notes,
+                )
+                self.suppliers[index] = updated
+                return updated
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
     def list_promotions(self, active_only: bool = True) -> list[Promotion]:
         if not active_only:
             return self.promotions
-        return [promo for promo in self.promotions if promo.is_active]
+        now = datetime.now(timezone.utc)
+        return [
+            promo
+            for promo in self.promotions
+            if promo.is_active
+            and (promo.starts_at is None or promo.starts_at <= now)
+            and (promo.ends_at is None or promo.ends_at >= now)
+        ]
 
     def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion:
         promotion = Promotion(
@@ -272,6 +392,8 @@ class MemoryRepository:
             description=payload.description,
             promotion_type=payload.promotion_type,  # type: ignore[arg-type]
             discount_value=payload.discount_value,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
             is_active=payload.is_active,
         )
         self.promotions.append(promotion)
@@ -286,6 +408,8 @@ class MemoryRepository:
                     description=payload.description,
                     promotion_type=payload.promotion_type,
                     discount_value=payload.discount_value,
+                    starts_at=payload.starts_at,
+                    ends_at=payload.ends_at,
                     is_active=payload.is_active,
                 )
                 self.promotions[index] = updated
@@ -306,6 +430,61 @@ class MemoryRepository:
                 self.promotions[index] = updated
                 return updated
         raise HTTPException(status_code=404, detail="Promocion no encontrada")
+
+    def get_sales_kpis(
+        self,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        sales_channel: str | None = None,
+    ) -> SalesKpisReport:
+        filtered = self.orders
+        if sales_channel:
+            filtered = [order for order in filtered if order.sales_channel == sales_channel]  # type: ignore[comparison-overlap]
+        if start_date:
+            filtered = [order for order in filtered if order.created_at and order.created_at >= start_date]
+        if end_date:
+            filtered = [order for order in filtered if order.created_at and order.created_at <= end_date]
+
+        total_orders = len(filtered)
+        total_revenue = float(sum(order.total for order in filtered))
+        ticket_average = float(total_revenue / total_orders) if total_orders else 0.0
+
+        units_sold = 0
+        product_units: dict[tuple[str, str], int] = {}
+        product_revenue: dict[tuple[str, str], float] = {}
+
+        for order in filtered:
+            for item in order.items:
+                units_sold += item.quantity
+                key = (item.product_slug, item.product_name)
+                product_units[key] = product_units.get(key, 0) + item.quantity
+                product_revenue[key] = product_revenue.get(key, 0.0) + item.line_total
+
+        top_products = sorted(
+            [
+                TopProductKpi(
+                    product_slug=slug,
+                    product_name=name,
+                    total_units=product_units[(slug, name)],
+                    total_revenue=product_revenue[(slug, name)],
+                )
+                for (slug, name) in product_units.keys()
+            ],
+            key=lambda item: (item.total_units, item.total_revenue),
+            reverse=True,
+        )[:5]
+
+        return SalesKpisReport(
+            sales_channel=sales_channel,  # type: ignore[arg-type]
+            start_date=start_date,
+            end_date=end_date,
+            total_orders=total_orders,
+            ticket_average=ticket_average,
+            units_sold=units_sold,
+            total_revenue=total_revenue,
+            top_products=top_products,
+        )
 
     def _register_sales_report(self, size: str, color: str, sales_channel: str, quantity: int, revenue: float) -> None:
         for row in self.sales_report:
