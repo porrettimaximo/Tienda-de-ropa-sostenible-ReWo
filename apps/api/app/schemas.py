@@ -58,7 +58,10 @@ class CheckoutItemRequest(BaseModel):
 class CheckoutRequest(BaseModel):
     customer_id: str | None = None
     customer_name: str | None = None
+    customer_first_name: str | None = None
+    customer_last_name: str | None = None
     customer_email: str | None = None
+    customer_dni: str | None = None
     payment_method: PaymentMethod | None = None
     notes: str | None = None
     redeem_points: int | None = Field(default=None, ge=0)
@@ -67,6 +70,14 @@ class CheckoutRequest(BaseModel):
     invoice_required: bool | None = None
     invoice_rfc: str | None = None
     invoice_business_name: str | None = None
+    shipping_method: str | None = None
+    shipping_address_line1: str | None = None
+    shipping_address_line2: str | None = None
+    shipping_country: str | None = None
+    shipping_province: str | None = None
+    shipping_city: str | None = None
+    shipping_postal_code: str | None = None
+    shipping_phone: str | None = None
     items: list[CheckoutItemRequest]
 
 

@@ -210,6 +210,9 @@ export type CheckoutInput = {
   customerId?: string;
   customerName?: string;
   customerEmail?: string;
+  customerFirstName?: string;
+  customerLastName?: string;
+  customerDni?: string;
   paymentMethod?: string;
   notes?: string;
   redeemPoints?: number;
@@ -218,6 +221,14 @@ export type CheckoutInput = {
   invoiceRequired?: boolean;
   invoiceRfc?: string;
   invoiceBusinessName?: string;
+  shippingMethod?: string;
+  shippingAddressLine1?: string;
+  shippingAddressLine2?: string;
+  shippingCountry?: string;
+  shippingProvince?: string;
+  shippingCity?: string;
+  shippingPostalCode?: string;
+  shippingPhone?: string;
   items: CheckoutItemInput[];
 };
 
@@ -1169,13 +1180,24 @@ export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutRe
     body: JSON.stringify({
       customer_id: payload.customerId,
       customer_name: payload.customerName,
+      customer_first_name: payload.customerFirstName ?? null,
+      customer_last_name: payload.customerLastName ?? null,
       customer_email: payload.customerEmail,
+      customer_dni: payload.customerDni ?? null,
       payment_method: payload.paymentMethod,
       notes: payload.notes,
       redeem_points: payload.redeemPoints ?? null,
       invoice_required: payload.invoiceRequired ?? null,
       invoice_rfc: payload.invoiceRfc ?? null,
       invoice_business_name: payload.invoiceBusinessName ?? null,
+      shipping_method: payload.shippingMethod ?? null,
+      shipping_address_line1: payload.shippingAddressLine1 ?? null,
+      shipping_address_line2: payload.shippingAddressLine2 ?? null,
+      shipping_country: payload.shippingCountry ?? null,
+      shipping_province: payload.shippingProvince ?? null,
+      shipping_city: payload.shippingCity ?? null,
+      shipping_postal_code: payload.shippingPostalCode ?? null,
+      shipping_phone: payload.shippingPhone ?? null,
       items: payload.items.map((item) => ({
         product_slug: item.productSlug,
         variant_id: item.variantId,
@@ -1194,7 +1216,10 @@ export async function submitStoreSale(payload: CheckoutInput): Promise<CheckoutR
     body: JSON.stringify({
       customer_id: payload.customerId,
       customer_name: payload.customerName,
+      customer_first_name: payload.customerFirstName ?? null,
+      customer_last_name: payload.customerLastName ?? null,
       customer_email: payload.customerEmail,
+      customer_dni: payload.customerDni ?? null,
       payment_method: payload.paymentMethod,
       notes: payload.notes,
       store_name: payload.storeName ?? null,
@@ -1203,6 +1228,14 @@ export async function submitStoreSale(payload: CheckoutInput): Promise<CheckoutR
       invoice_required: payload.invoiceRequired ?? null,
       invoice_rfc: payload.invoiceRfc ?? null,
       invoice_business_name: payload.invoiceBusinessName ?? null,
+      shipping_method: payload.shippingMethod ?? null,
+      shipping_address_line1: payload.shippingAddressLine1 ?? null,
+      shipping_address_line2: payload.shippingAddressLine2 ?? null,
+      shipping_country: payload.shippingCountry ?? null,
+      shipping_province: payload.shippingProvince ?? null,
+      shipping_city: payload.shippingCity ?? null,
+      shipping_postal_code: payload.shippingPostalCode ?? null,
+      shipping_phone: payload.shippingPhone ?? null,
       items: payload.items.map((item) => ({
         product_slug: item.productSlug,
         variant_id: item.variantId,
