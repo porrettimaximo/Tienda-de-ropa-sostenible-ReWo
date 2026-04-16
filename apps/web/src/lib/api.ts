@@ -756,6 +756,58 @@ export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
   }
 }
 
+/**
+ * Calcula el mejor descuento aplicable basado en promociones activas
+ * 
+ * @param items - Items en el carrito
+ * @param promotions - Promociones activas disponibles
+ * @param subtotal - Subtotal de la compra
+ * @returns Objeto con monto de descuento y datos de la promoción aplicada
+ */
+export function calculateBestPromotion(
+  items: Array<{ productSlug: string; quantity: number }>,
+  promotions: Promotion[],
+  subtotal: number
+): { discountAmount: number; appliedPromotion: Promotion | null } {
+  let bestDiscount = 0;
+  let appliedPromotion: Promotion | null = null;
+
+  for (const promo of promotions) {
+    let discount = 0;
+
+    switch (promo.promotionType) {
+      case "fixed":
+        // Descuento fijo simple
+        discount = promo.discountValue;
+        break;
+
+      case "percentage":
+        // Descuento porcentual
+        discount = subtotal * (promo.discountValue / 100);
+        break;
+
+      case "combo":
+        // Descuento combo: requiere subtotal >= 5000 y 2+ productos distintos
+        const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
+        if (subtotal >= 5000 && distinctProducts >= 2) {
+          discount = promo.discountValue;
+        }
+        break;
+    }
+
+    // Usar la promoción que da mayor descuento
+    if (discount > bestDiscount) {
+      bestDiscount = discount;
+      appliedPromotion = promo;
+    }
+  }
+
+  return {
+    discountAmount: bestDiscount,
+    appliedPromotion
+  };
+}
+
 export async function getAdminPromotions(): Promise<Promotion[]> {
   try {
     const response = await requestJson<

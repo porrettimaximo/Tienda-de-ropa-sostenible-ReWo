@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useCart } from "../components/CartContext";
-import { getStoredUser, submitCheckout } from "../lib/api";
+import { 
+  getStoredUser, 
+  submitCheckout,
+  getPromotions,
+  calculateBestPromotion,
+  type Promotion
+} from "../lib/api";
 
 export function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const [storedUser, setStoredUser] = useState(() => getStoredUser());
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loadingPromotions, setLoadingPromotions] = useState(true);
   const [customerEmail, setCustomerEmail] = useState(() => storedUser?.email ?? "jorgegonzalez@email.com");
   const [customerFirstName, setCustomerFirstName] = useState("Jorge");
   const [customerLastName, setCustomerLastName] = useState("Gonzalez");
@@ -40,8 +48,23 @@ export function CheckoutPage() {
   const isLoggedIn = Boolean(storedUser);
   const customerName = `${customerFirstName} ${customerLastName}`.trim();
 
-  const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
-  const estimatedPromotionDiscount = subtotal >= 5000 && distinctProducts >= 2 ? 350 : 0;
+  // Cargar promociones activas
+  useEffect(() => {
+    setLoadingPromotions(true);
+    getPromotions(true)
+      .then(setPromotions)
+      .catch(() => setPromotions([]))
+      .finally(() => setLoadingPromotions(false));
+  }, []);
+
+  // Calcular descuentos dinámicamente según promociones activas
+  const { discountAmount: estimatedPromotionDiscount, appliedPromotion } = 
+    calculateBestPromotion(
+      items.map(item => ({ productSlug: item.productSlug, quantity: item.quantity })),
+      promotions,
+      subtotal
+    );
+  
   const totalAfterPromo = Math.max(0, subtotal - estimatedPromotionDiscount);
   const redeemablePoints = redeemPoints > 0 ? Math.floor(redeemPoints / 500) * 500 : 0;
   const loyaltyDiscountPreview = redeemablePoints > 0 ? Math.floor(redeemablePoints / 500) * 100 : 0;
@@ -520,11 +543,20 @@ export function CheckoutPage() {
           </h2>
           <div className="mt-8 space-y-4 border-b border-outline-variant/30 pb-8 text-sm uppercase tracking-[0.2em]">
             <SummaryRow label="Subtotal" value={`$${subtotal.toLocaleString("es-MX")} MXN`} />
-            <SummaryRow
-              label="Promocion combo"
-              value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
-              valueClassName="text-secondary"
-            />
+            {estimatedPromotionDiscount > 0 && appliedPromotion && (
+              <SummaryRow
+                label={`Promocion: ${appliedPromotion.name}`}
+                value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
+                valueClassName="text-secondary"
+              />
+            )}
+            {estimatedPromotionDiscount > 0 && !appliedPromotion && (
+              <SummaryRow
+                label="Promocion"
+                value={`-$${estimatedPromotionDiscount.toLocaleString("es-MX")} MXN`}
+                valueClassName="text-secondary"
+              />
+            )}
             <SummaryRow
               label="Canje puntos"
               value={`-$${effectiveLoyaltyDiscount.toLocaleString("es-MX")} MXN`}
