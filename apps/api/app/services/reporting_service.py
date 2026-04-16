@@ -1,4 +1,4 @@
-from app.domain import LoyaltyCustomer, OrderSummary, SalesByVariantReport
+from app.domain import LoyaltyCustomer, OrderSummary, Promotion, SalesByVariantReport
 from app.repositories.base import EcommerceRepository
 from app.schemas import AdminOverviewResponse
 
@@ -12,6 +12,9 @@ class ReportingService:
 
     def get_customer_orders(self, customer_id: str) -> list[OrderSummary]:
         return self.repository.list_customer_orders(customer_id)
+
+    def list_promotions(self, active_only: bool = True) -> list[Promotion]:
+        return self.repository.list_promotions(active_only=active_only)
 
     def get_sales_by_size_color(self) -> list[SalesByVariantReport]:
         return self.repository.get_sales_report()

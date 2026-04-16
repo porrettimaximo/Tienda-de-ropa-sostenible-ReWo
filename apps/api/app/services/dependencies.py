@@ -2,6 +2,7 @@ from app.repositories.hybrid_repository import HybridRepository
 from app.services.auth_service import AuthService
 from app.services.catalog_service import CatalogService
 from app.services.reporting_service import ReportingService
+from app.services.promotions_service import PromotionsService
 from app.services.sales_service import SalesService
 
 repository = HybridRepository()
@@ -21,3 +22,7 @@ def get_sales_service() -> SalesService:
 
 def get_reporting_service() -> ReportingService:
     return ReportingService(repository.backend())
+
+
+def get_promotions_service() -> PromotionsService:
+    return PromotionsService(repository.backend())

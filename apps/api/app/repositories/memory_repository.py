@@ -12,13 +12,14 @@ from app.domain import (
     LoyaltyCustomer,
     OrderItem,
     OrderSummary,
+    Promotion,
     ProductDetail,
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
     Supplier,
 )
-from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest
+from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest, PromotionUpsertRequest
 from app.services.promotions import apply_combo_promotion
 
 
@@ -35,6 +36,16 @@ class MemoryRepository:
                 name="Admin EcoWear",
                 email="admin@ecowear.mx",
                 role="admin",
+            )
+        ]
+        self.promotions = [
+            Promotion(
+                id="promo-combo-temporada",
+                name="Combo de temporada",
+                description="-$350 MXN en compras desde $5,000 con 2 productos distintos.",
+                promotion_type="combo",
+                discount_value=350,
+                is_active=True,
             )
         ]
 
@@ -237,13 +248,60 @@ class MemoryRepository:
         sales_total = sum(order.total for order in self.orders) or sum(row.total_revenue for row in self.sales_report)
         return AdminOverview(
             low_stock_variants=low_stock_variants,
-            active_promotions=1,
+            active_promotions=len([promo for promo in self.promotions if promo.is_active]),
             ethical_suppliers=len(self.suppliers),
             sales_total=sales_total,
         )
 
     def list_suppliers(self) -> list[Supplier]:
         return self.suppliers
+
+    def list_promotions(self, active_only: bool = True) -> list[Promotion]:
+        if not active_only:
+            return self.promotions
+        return [promo for promo in self.promotions if promo.is_active]
+
+    def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion:
+        promotion = Promotion(
+            id=f"promo-{uuid4().hex[:10]}",
+            name=payload.name,
+            description=payload.description,
+            promotion_type=payload.promotion_type,  # type: ignore[arg-type]
+            discount_value=payload.discount_value,
+            is_active=payload.is_active,
+        )
+        self.promotions.append(promotion)
+        return promotion
+
+    def update_promotion(self, promotion_id: str, payload: PromotionUpsertRequest) -> Promotion:
+        for index, promotion in enumerate(self.promotions):
+            if promotion.id == promotion_id:
+                updated = Promotion(
+                    id=promotion.id,
+                    name=payload.name,
+                    description=payload.description,
+                    promotion_type=payload.promotion_type,
+                    discount_value=payload.discount_value,
+                    is_active=payload.is_active,
+                )
+                self.promotions[index] = updated
+                return updated
+        raise HTTPException(status_code=404, detail="Promocion no encontrada")
+
+    def set_promotion_active(self, promotion_id: str, is_active: bool) -> Promotion:
+        for index, promotion in enumerate(self.promotions):
+            if promotion.id == promotion_id:
+                updated = Promotion(
+                    id=promotion.id,
+                    name=promotion.name,
+                    description=promotion.description,
+                    promotion_type=promotion.promotion_type,
+                    discount_value=promotion.discount_value,
+                    is_active=is_active,
+                )
+                self.promotions[index] = updated
+                return updated
+        raise HTTPException(status_code=404, detail="Promocion no encontrada")
 
     def _register_sales_report(self, size: str, color: str, sales_channel: str, quantity: int, revenue: float) -> None:
         for row in self.sales_report:

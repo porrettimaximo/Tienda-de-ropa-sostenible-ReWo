@@ -89,9 +89,12 @@ export function AdminDashboardPage() {
             >
               Ver catalogo publico
             </Link>
-            <button className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface">
+            <Link
+              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
+              to="/admin/promotions"
+            >
               Publicar combo de temporada
-            </button>
+            </Link>
           </div>
         </div>
 

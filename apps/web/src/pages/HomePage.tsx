@@ -134,9 +134,12 @@ export function HomePage() {
             Optimiza tu armario con sets curados. Sostenibilidad multiplicada por un precio consciente.
           </p>
           <div className="flex">
-            <button className="bg-secondary px-10 py-5 text-sm font-bold uppercase tracking-tight text-on-secondary transition-all hover:opacity-90">
+            <Link
+              className="bg-secondary px-10 py-5 text-sm font-bold uppercase tracking-tight text-on-secondary transition-all hover:opacity-90"
+              to="/combos"
+            >
               Ver Combos
-            </button>
+            </Link>
           </div>
         </div>
         <div className="relative min-h-[320px] flex-1 md:min-h-[400px]">

@@ -23,6 +23,20 @@ Frontend del ecommerce de ReWo.
 
 - `VITE_API_URL`: URL base del backend FastAPI
 
+## Correr en local
+
+Desde la raiz del proyecto:
+
+```powershell
+npm run dev:web
+```
+
+O desde `apps/web`:
+
+```powershell
+npm run dev
+```
+
 ## Estado actual
 
 - Las pantallas ya consumen una capa de datos compartida.

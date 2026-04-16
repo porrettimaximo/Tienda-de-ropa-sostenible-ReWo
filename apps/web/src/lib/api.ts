@@ -193,6 +193,16 @@ export type SalesReportRow = {
   revenueLabel: string;
 };
 
+export type Promotion = {
+  id: string;
+  name: string;
+  description?: string | null;
+  promotionType: "percentage" | "fixed" | "combo";
+  discountValue: number;
+  isActive: boolean;
+  discountLabel: string;
+};
+
 export type CustomerOrder = {
   id: string;
   channel: "online" | "store";
@@ -453,6 +463,197 @@ export async function getSalesReport(): Promise<SalesReportRow[]> {
       }
     ];
   }
+}
+
+export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
+  try {
+    const response = await requestJson<
+      Array<{
+        id: string;
+        name: string;
+        description?: string | null;
+        promotion_type: "percentage" | "fixed" | "combo";
+        discount_value: number;
+        is_active: boolean;
+      }>
+    >(`/promotions?active_only=${String(activeOnly)}`);
+
+    return response.map((promo) => ({
+      id: promo.id,
+      name: promo.name,
+      description: promo.description,
+      promotionType: promo.promotion_type,
+      discountValue: promo.discount_value,
+      isActive: promo.is_active,
+      discountLabel:
+        promo.promotion_type === "percentage"
+          ? `${promo.discount_value}%`
+          : `$${promo.discount_value.toLocaleString("es-MX")} MXN`
+    }));
+  } catch {
+    return [
+      {
+        id: "promo-combo-temporada",
+        name: "Combo de temporada",
+        description: "-$350 MXN en compras desde $5,000 con 2 productos distintos.",
+        promotionType: "combo",
+        discountValue: 350,
+        isActive: true,
+        discountLabel: "$350 MXN"
+      }
+    ];
+  }
+}
+
+export async function getAdminPromotions(): Promise<Promotion[]> {
+  try {
+    const response = await requestJson<
+      Array<{
+        id: string;
+        name: string;
+        description?: string | null;
+        promotion_type: "percentage" | "fixed" | "combo";
+        discount_value: number;
+        is_active: boolean;
+      }>
+    >("/admin/promotions?active_only=false");
+
+    return response.map((promo) => ({
+      id: promo.id,
+      name: promo.name,
+      description: promo.description,
+      promotionType: promo.promotion_type,
+      discountValue: promo.discount_value,
+      isActive: promo.is_active,
+      discountLabel:
+        promo.promotion_type === "percentage"
+          ? `${promo.discount_value}%`
+          : `$${promo.discount_value.toLocaleString("es-MX")} MXN`
+    }));
+  } catch {
+    return getPromotions(false);
+  }
+}
+
+export async function createAdminPromotion(payload: {
+  name: string;
+  description?: string;
+  promotionType: "percentage" | "fixed" | "combo";
+  discountValue: number;
+  isActive: boolean;
+}): Promise<Promotion> {
+  const response = await requestJson<{
+    promotion: {
+      id: string;
+      name: string;
+      description?: string | null;
+      promotion_type: "percentage" | "fixed" | "combo";
+      discount_value: number;
+      is_active: boolean;
+    };
+  }>("/admin/promotions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: payload.name,
+      description: payload.description ?? null,
+      promotion_type: payload.promotionType,
+      discount_value: payload.discountValue,
+      is_active: payload.isActive
+    })
+  });
+
+  const promo = response.promotion;
+  return {
+    id: promo.id,
+    name: promo.name,
+    description: promo.description,
+    promotionType: promo.promotion_type,
+    discountValue: promo.discount_value,
+    isActive: promo.is_active,
+    discountLabel:
+      promo.promotion_type === "percentage"
+        ? `${promo.discount_value}%`
+        : `$${promo.discount_value.toLocaleString("es-MX")} MXN`
+  };
+}
+
+export async function updateAdminPromotion(
+  promotionId: string,
+  payload: {
+    name: string;
+    description?: string;
+    promotionType: "percentage" | "fixed" | "combo";
+    discountValue: number;
+    isActive: boolean;
+  }
+): Promise<Promotion> {
+  const response = await requestJson<{
+    promotion: {
+      id: string;
+      name: string;
+      description?: string | null;
+      promotion_type: "percentage" | "fixed" | "combo";
+      discount_value: number;
+      is_active: boolean;
+    };
+  }>(`/admin/promotions/${promotionId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: payload.name,
+      description: payload.description ?? null,
+      promotion_type: payload.promotionType,
+      discount_value: payload.discountValue,
+      is_active: payload.isActive
+    })
+  });
+
+  const promo = response.promotion;
+  return {
+    id: promo.id,
+    name: promo.name,
+    description: promo.description,
+    promotionType: promo.promotion_type,
+    discountValue: promo.discount_value,
+    isActive: promo.is_active,
+    discountLabel:
+      promo.promotion_type === "percentage"
+        ? `${promo.discount_value}%`
+        : `$${promo.discount_value.toLocaleString("es-MX")} MXN`
+  };
+}
+
+export async function setAdminPromotionActive(
+  promotionId: string,
+  isActive: boolean
+): Promise<Promotion> {
+  const response = await requestJson<{
+    promotion: {
+      id: string;
+      name: string;
+      description?: string | null;
+      promotion_type: "percentage" | "fixed" | "combo";
+      discount_value: number;
+      is_active: boolean;
+    };
+  }>(`/admin/promotions/${promotionId}/active?is_active=${String(isActive)}`, {
+    method: "PUT"
+  });
+
+  const promo = response.promotion;
+  return {
+    id: promo.id,
+    name: promo.name,
+    description: promo.description,
+    promotionType: promo.promotion_type,
+    discountValue: promo.discount_value,
+    isActive: promo.is_active,
+    discountLabel:
+      promo.promotion_type === "percentage"
+        ? `${promo.discount_value}%`
+        : `$${promo.discount_value.toLocaleString("es-MX")} MXN`
+  };
 }
 
 export async function getAdminProducts(): Promise<AdminProduct[]> {

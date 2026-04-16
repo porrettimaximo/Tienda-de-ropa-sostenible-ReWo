@@ -7,6 +7,7 @@ from app.routers.auth import router as auth_router
 from app.routers.health import router as health_router
 from app.routers.loyalty import router as loyalty_router
 from app.routers.products import router as products_router
+from app.routers.promotions import router as promotions_router
 from app.routers.reports import router as reports_router
 from app.routers.sales import router as sales_router
 from app.schemas import RootResponse
@@ -40,4 +41,5 @@ app.include_router(products_router)
 app.include_router(sales_router)
 app.include_router(admin_router)
 app.include_router(loyalty_router)
+app.include_router(promotions_router)
 app.include_router(reports_router)

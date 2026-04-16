@@ -184,3 +184,20 @@ on conflict (id) do update set
   stock = excluded.stock,
   price_override = excluded.price_override,
   is_active = excluded.is_active;
+
+insert into public.promotions (id, name, description, promotion_type, discount_value, is_active)
+values
+  (
+    '99999999-9999-9999-9999-999999999999',
+    'Combo de temporada',
+    '-$350 MXN en compras desde $5,000 con 2 productos distintos.',
+    'combo',
+    350,
+    true
+  )
+on conflict (id) do update set
+  name = excluded.name,
+  description = excluded.description,
+  promotion_type = excluded.promotion_type,
+  discount_value = excluded.discount_value,
+  is_active = excluded.is_active;

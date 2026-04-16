@@ -6,6 +6,8 @@ import { AccountPage } from "./pages/AccountPage";
 import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { AdminPromotionsPage } from "./pages/AdminPromotionsPage";
+import { CombosPage } from "./pages/CombosPage";
 import { CartPage } from "./pages/CartPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { CollectionPage } from "./pages/CollectionPage";
@@ -32,6 +34,14 @@ function App() {
             element={
               <SiteShell activeNav="collections">
                 <CollectionPage />
+              </SiteShell>
+            }
+          />
+          <Route
+            path="/combos"
+            element={
+              <SiteShell activeNav="collections">
+                <CombosPage />
               </SiteShell>
             }
           />
@@ -83,19 +93,27 @@ function App() {
               </SiteShell>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <SiteShell activeNav="collections">
-                <AdminDashboardPage />
-              </SiteShell>
-            }
-          />
-          <Route
-            path="/admin/catalog"
-            element={
-              <SiteShell activeNav="collections">
-                <AdminCatalogPage />
+        <Route
+          path="/admin"
+          element={
+            <SiteShell activeNav="collections">
+              <AdminDashboardPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/promotions"
+          element={
+            <SiteShell activeNav="collections">
+              <AdminPromotionsPage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/admin/catalog"
+          element={
+            <SiteShell activeNav="collections">
+              <AdminCatalogPage />
               </SiteShell>
             }
           />

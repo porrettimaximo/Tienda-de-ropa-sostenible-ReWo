@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 
-from app.domain import AdminOverview, AuthUser, OrderSummary, ProductDetail, ProductVariant
+from app.domain import (
+    AdminOverview,
+    AuthUser,
+    OrderSummary,
+    ProductDetail,
+    ProductVariant,
+    Promotion,
+    PromotionType,
+)
 
 
 class HealthResponse(BaseModel):
@@ -58,6 +66,13 @@ class VariantUpsertRequest(BaseModel):
     stock: int = Field(ge=0)
     price: float = Field(ge=0)
 
+class PromotionUpsertRequest(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+    promotion_type: PromotionType
+    discount_value: float = Field(ge=0)
+    is_active: bool = True
+
 
 class AdminProductResponse(BaseModel):
     product: ProductDetail
@@ -65,6 +80,10 @@ class AdminProductResponse(BaseModel):
 
 class AdminVariantResponse(BaseModel):
     variant: ProductVariant
+
+
+class AdminPromotionResponse(BaseModel):
+    promotion: Promotion
 
 
 class CheckoutResponse(BaseModel):

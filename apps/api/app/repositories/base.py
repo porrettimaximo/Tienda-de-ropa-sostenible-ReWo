@@ -6,13 +6,14 @@ from app.domain import (
     AdminOverview,
     AuthUser,
     LoyaltyCustomer,
+    Promotion,
     ProductDetail,
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
     Supplier,
 )
-from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest
+from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest, PromotionUpsertRequest
 
 
 class EcommerceRepository(Protocol):
@@ -34,3 +35,7 @@ class EcommerceRepository(Protocol):
     def get_sales_report(self) -> list[SalesByVariantReport]: ...
     def get_admin_overview(self) -> AdminOverview: ...
     def list_suppliers(self) -> list[Supplier]: ...
+    def list_promotions(self, active_only: bool = True) -> list[Promotion]: ...
+    def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion: ...
+    def update_promotion(self, promotion_id: str, payload: PromotionUpsertRequest) -> Promotion: ...
+    def set_promotion_active(self, promotion_id: str, is_active: bool) -> Promotion: ...

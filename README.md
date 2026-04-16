@@ -71,17 +71,47 @@ Base inicial para desarrollar la prueba tecnica de pasantia de ReWo con un stack
 
 ## Desarrollo local
 
-Backend:
+### 1) Instalar dependencias
+
+Frontend (workspaces):
+
+```powershell
+cd "c:\Users\Maxi\Desktop\Tienda de ropa sostenible ReWo"
+npm install
+```
+
+Backend (Python):
+
+```powershell
+cd "c:\Users\Maxi\Desktop\Tienda de ropa sostenible ReWo"
+pip install -r apps/api/requirements.txt
+```
+
+### 2) Levantar backend y frontend
+
+Backend (FastAPI):
 
 ```powershell
 npm run dev:api
 ```
 
-Frontend:
+Frontend (React/Vite):
 
 ```powershell
 npm run dev:web
 ```
+
+### 3) Abrir la app
+
+- Frontend: normalmente `http://localhost:5173`
+- Backend: `http://127.0.0.1:8000`
+
+Checks rápidos de API:
+
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/products`
+
+Nota: el frontend usa `VITE_API_URL` (ver `apps/web/.env.example`). Por defecto apunta a `http://127.0.0.1:8000`.
 
 ## Funcionalidad extra sugerida
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 SalesChannel = Literal["online", "store"]
+PromotionType = Literal["percentage", "fixed", "combo"]
 
 
 class Category(BaseModel):
@@ -104,3 +105,12 @@ class AdminOverview(BaseModel):
     active_promotions: int = Field(ge=0)
     ethical_suppliers: int = Field(ge=0)
     sales_total: float = Field(ge=0)
+
+
+class Promotion(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    promotion_type: PromotionType
+    discount_value: float = Field(ge=0)
+    is_active: bool = True

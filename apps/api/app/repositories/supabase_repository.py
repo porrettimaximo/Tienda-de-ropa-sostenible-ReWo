@@ -12,13 +12,19 @@ from app.domain import (
     LoyaltyCustomer,
     OrderItem,
     OrderSummary,
+    Promotion,
     ProductDetail,
     ProductSummary,
     ProductVariant,
     SalesByVariantReport,
     Supplier,
 )
-from app.schemas import CheckoutRequest, ProductUpsertRequest, VariantUpsertRequest
+from app.schemas import (
+    CheckoutRequest,
+    ProductUpsertRequest,
+    PromotionUpsertRequest,
+    VariantUpsertRequest,
+)
 from app.services.supabase_client import get_supabase_client
 from app.services.promotions import apply_combo_promotion
 
@@ -414,7 +420,7 @@ class SupabaseRepository:
         sales_total = sum(item.total_revenue for item in self.get_sales_report())
         return AdminOverview(
             low_stock_variants=low_stock_variants,
-            active_promotions=1,
+            active_promotions=len(self.list_promotions(active_only=True)),
             ethical_suppliers=len(self.list_suppliers()),
             sales_total=sales_total,
         )
@@ -431,6 +437,95 @@ class SupabaseRepository:
             )
             for row in rows
         ]
+
+    def list_promotions(self, active_only: bool = True) -> list[Promotion]:
+        client = self._client()
+        query = client.table("promotions").select("*")
+        if active_only:
+            query = query.eq("is_active", True)
+        rows = query.execute().data or []
+        return [
+            Promotion(
+                id=row["id"],
+                name=row["name"],
+                description=row.get("description"),
+                promotion_type=row["promotion_type"],
+                discount_value=float(row.get("discount_value") or 0),
+                is_active=row.get("is_active", True),
+            )
+            for row in rows
+        ]
+
+    def create_promotion(self, payload: PromotionUpsertRequest) -> Promotion:
+        client = self._client()
+        promotion_id = str(uuid4())
+        inserted = (
+            client.table("promotions")
+            .insert(
+                {
+                    "id": promotion_id,
+                    "name": payload.name,
+                    "description": payload.description,
+                    "promotion_type": payload.promotion_type,
+                    "discount_value": payload.discount_value,
+                    "is_active": payload.is_active,
+                }
+            )
+            .execute()
+            .data
+        )
+        if not inserted:
+            raise HTTPException(status_code=500, detail="No se pudo crear la promocion")
+        rows = client.table("promotions").select("*").eq("id", promotion_id).limit(1).execute().data or []
+        row = rows[0]
+        return Promotion(
+            id=row["id"],
+            name=row["name"],
+            description=row.get("description"),
+            promotion_type=row["promotion_type"],
+            discount_value=float(row.get("discount_value") or 0),
+            is_active=row.get("is_active", True),
+        )
+
+    def update_promotion(self, promotion_id: str, payload: PromotionUpsertRequest) -> Promotion:
+        client = self._client()
+        client.table("promotions").update(
+            {
+                "name": payload.name,
+                "description": payload.description,
+                "promotion_type": payload.promotion_type,
+                "discount_value": payload.discount_value,
+                "is_active": payload.is_active,
+            }
+        ).eq("id", promotion_id).execute()
+        rows = client.table("promotions").select("*").eq("id", promotion_id).limit(1).execute().data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Promocion no encontrada")
+        row = rows[0]
+        return Promotion(
+            id=row["id"],
+            name=row["name"],
+            description=row.get("description"),
+            promotion_type=row["promotion_type"],
+            discount_value=float(row.get("discount_value") or 0),
+            is_active=row.get("is_active", True),
+        )
+
+    def set_promotion_active(self, promotion_id: str, is_active: bool) -> Promotion:
+        client = self._client()
+        client.table("promotions").update({"is_active": is_active}).eq("id", promotion_id).execute()
+        rows = client.table("promotions").select("*").eq("id", promotion_id).limit(1).execute().data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Promocion no encontrada")
+        row = rows[0]
+        return Promotion(
+            id=row["id"],
+            name=row["name"],
+            description=row.get("description"),
+            promotion_type=row["promotion_type"],
+            discount_value=float(row.get("discount_value") or 0),
+            is_active=row.get("is_active", True),
+        )
 
     def _find_customer(self, identifier: str) -> LoyaltyCustomer:
         client = self._client()
