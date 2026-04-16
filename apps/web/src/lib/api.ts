@@ -62,6 +62,14 @@ type ApiOverview = {
   };
 };
 
+type ApiSalesReportRow = {
+  size: string;
+  color: string;
+  sales_channel: "online" | "store";
+  total_units: number;
+  total_revenue: number;
+};
+
 type ApiCheckoutResponse = {
   order: {
     id: string;
@@ -84,6 +92,24 @@ type ApiCheckoutResponse = {
       line_total: number;
     }>;
   };
+};
+
+type ProductPayload = {
+  name: string;
+  slug: string;
+  description: string;
+  categoryId: string;
+  supplierId?: string;
+  sustainabilityLabel?: string;
+  sustainabilityScore?: number;
+};
+
+type VariantPayload = {
+  sku: string;
+  size: string;
+  color: string;
+  stock: number;
+  price: number;
 };
 
 export type CatalogVariant = {
@@ -131,6 +157,17 @@ export type CheckoutInput = {
 };
 
 export type CheckoutResult = ApiCheckoutResponse["order"];
+
+export type AdminProduct = CatalogProduct;
+
+export type SalesReportRow = {
+  size: string;
+  color: string;
+  channel: "online" | "store";
+  units: number;
+  revenue: number;
+  revenueLabel: string;
+};
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${config.apiUrl}${path}`, init);
@@ -207,6 +244,7 @@ function mapSummary(product: ApiProductSummary): CatalogProduct {
     sustainability: product.sustainability_label ?? "Impacto consciente",
     composition: fallback?.composition ?? "Composicion por definir",
     category: product.category,
+    supplierName: fallback?.supplierName,
     variants: []
   };
 }
@@ -244,6 +282,28 @@ function mapDetail(product: ApiProductDetail): CatalogProduct {
     supplierName: product.supplier?.name ?? undefined,
     sustainabilityScore: product.sustainability_score,
     variants
+  };
+}
+
+function mapProductPayload(payload: ProductPayload) {
+  return {
+    name: payload.name,
+    slug: payload.slug,
+    description: payload.description,
+    category_id: payload.categoryId,
+    supplier_id: payload.supplierId,
+    sustainability_label: payload.sustainabilityLabel,
+    sustainability_score: payload.sustainabilityScore
+  };
+}
+
+function mapVariantPayload(payload: VariantPayload) {
+  return {
+    sku: payload.sku,
+    size: payload.size,
+    color: payload.color,
+    stock: payload.stock,
+    price: payload.price
   };
 }
 
@@ -293,6 +353,107 @@ export async function getAdminSummary() {
   }
 }
 
+export async function getSalesReport(): Promise<SalesReportRow[]> {
+  try {
+    const response = await requestJson<ApiSalesReportRow[]>("/reports/sales-by-size-color");
+    return response.map((row) => ({
+      size: row.size,
+      color: row.color,
+      channel: row.sales_channel,
+      units: row.total_units,
+      revenue: row.total_revenue,
+      revenueLabel: formatCurrency(row.total_revenue)
+    }));
+  } catch {
+    return [
+      {
+        size: "M",
+        color: "Musgo",
+        channel: "online",
+        units: 12,
+        revenue: 41400,
+        revenueLabel: formatCurrency(41400)
+      },
+      {
+        size: "L",
+        color: "Arena",
+        channel: "store",
+        units: 5,
+        revenue: 17250,
+        revenueLabel: formatCurrency(17250)
+      }
+    ];
+  }
+}
+
+export async function getAdminProducts(): Promise<AdminProduct[]> {
+  try {
+    const data = await requestJson<ApiProductDetail[]>("/admin/products");
+    return data.map(mapDetail);
+  } catch {
+    return mockProducts.map(getFallbackCatalogProduct);
+  }
+}
+
+export async function updateAdminVariant(
+  productSlug: string,
+  variantId: string,
+  payload: VariantPayload
+): Promise<CatalogVariant> {
+  const response = await requestJson<{ variant: ApiProductDetail["variants"][number] }>(
+    `/admin/products/${productSlug}/variants/${variantId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mapVariantPayload(payload))
+    }
+  );
+
+  return {
+    id: response.variant.id,
+    sku: response.variant.sku,
+    size: response.variant.size,
+    color: response.variant.color,
+    stock: response.variant.stock,
+    price: response.variant.price,
+    priceLabel: formatCurrency(response.variant.price)
+  };
+}
+
+export async function createAdminProduct(payload: ProductPayload): Promise<AdminProduct> {
+  const response = await requestJson<{ product: ApiProductDetail }>("/admin/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mapProductPayload(payload))
+  });
+
+  return mapDetail(response.product);
+}
+
+export async function createAdminVariant(
+  productSlug: string,
+  payload: VariantPayload
+): Promise<CatalogVariant> {
+  const response = await requestJson<{ variant: ApiProductDetail["variants"][number] }>(
+    `/admin/products/${productSlug}/variants`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mapVariantPayload(payload))
+    }
+  );
+
+  return {
+    id: response.variant.id,
+    sku: response.variant.sku,
+    size: response.variant.size,
+    color: response.variant.color,
+    stock: response.variant.stock,
+    price: response.variant.price,
+    priceLabel: formatCurrency(response.variant.price)
+  };
+}
+
 export async function signInClient(email: string, password: string) {
   if (!email || !password) {
     throw new Error("Completa email y contrasena");
@@ -325,6 +486,27 @@ export async function signInAdmin(username: string, password: string) {
 
 export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutResult> {
   const response = await requestJson<ApiCheckoutResponse>("/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      customer_id: payload.customerId,
+      customer_name: payload.customerName,
+      customer_email: payload.customerEmail,
+      payment_method: payload.paymentMethod,
+      notes: payload.notes,
+      items: payload.items.map((item) => ({
+        product_slug: item.productSlug,
+        variant_id: item.variantId,
+        quantity: item.quantity
+      }))
+    })
+  });
+
+  return response.order;
+}
+
+export async function submitStoreSale(payload: CheckoutInput): Promise<CheckoutResult> {
+  const response = await requestJson<ApiCheckoutResponse>("/sales/store", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

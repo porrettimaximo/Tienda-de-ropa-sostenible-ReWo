@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { adminSummary as fallbackAdminSummary } from "../data/store";
-import { getAdminSummary } from "../lib/api";
+import { getAdminSummary, getSalesReport, type SalesReportRow } from "../lib/api";
 
 export function AdminDashboardPage() {
   const [adminSummary, setAdminSummary] = useState(fallbackAdminSummary);
+  const [salesReport, setSalesReport] = useState<SalesReportRow[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -16,10 +17,20 @@ export function AdminDashboardPage() {
       }
     });
 
+    getSalesReport().then((data) => {
+      if (active) {
+        setSalesReport(data);
+      }
+    });
+
     return () => {
       active = false;
     };
   }, []);
+
+  const topRows = [...salesReport]
+    .sort((left, right) => right.units - left.units)
+    .slice(0, 4);
 
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
@@ -33,8 +44,8 @@ export function AdminDashboardPage() {
           </h1>
         </div>
         <p className="max-w-sm text-sm leading-relaxed text-on-surface-variant">
-          Vista inicial para coordinar catálogo, stock por variante, promociones, loyalty
-          y reportes comerciales.
+          Vista inicial para coordinar catalogo, stock por variante, promociones, loyalty y
+          reportes comerciales con datos del backend.
         </p>
       </header>
 
@@ -42,7 +53,7 @@ export function AdminDashboardPage() {
         {[
           { label: "Stock bajo", value: adminSummary.lowStockVariants.toString() },
           { label: "Promociones activas", value: adminSummary.activePromotions.toString() },
-          { label: "Proveedores éticos", value: adminSummary.ethicalSuppliers.toString() },
+          { label: "Proveedores eticos", value: adminSummary.ethicalSuppliers.toString() },
           { label: "Ventas hoy", value: adminSummary.salesToday }
         ].map((card) => (
           <article key={card.label} className="bg-[#f2f4f4] p-8">
@@ -57,26 +68,26 @@ export function AdminDashboardPage() {
       <section className="mt-10 grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="border border-outline-variant/30 p-8">
           <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
-            Acciones rápidas
+            Acciones rapidas
           </h2>
           <div className="mt-8 grid gap-4">
             <Link
               className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
               to="/admin/catalog"
             >
-              Crear producto nuevo
-            </Link>
-            <Link
-              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
-              to="/admin/catalog"
-            >
-              Actualizar variante con stock crítico
+              Gestionar productos y variantes
             </Link>
             <Link
               className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
               to="/admin/store-sales"
             >
-              Registrar venta de tienda física
+              Registrar venta de tienda fisica
+            </Link>
+            <Link
+              className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface"
+              to="/collections"
+            >
+              Ver catalogo publico
             </Link>
             <button className="border border-outline/30 px-5 py-4 text-left text-[0.75rem] font-black uppercase tracking-[0.2em] hover:bg-inverse-surface hover:text-surface">
               Publicar combo de temporada
@@ -85,18 +96,33 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="border border-outline-variant/30 p-8">
-          <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
-            Reporte rápido talla / color
-          </h2>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
+                Reporte rapido talla / color
+              </h2>
+              <p className="mt-3 text-sm text-on-surface-variant">
+                Resumen real de ventas agrupadas por variante.
+              </p>
+            </div>
+            <span className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-tertiary">
+              {salesReport.length} filas
+            </span>
+          </div>
+
           <div className="mt-8 space-y-4">
-            {[
-              "M / Musgo / online / 12 unidades",
-              "L / Arena / store / 5 unidades",
-              "M / Crema / online / 18 unidades"
-            ].map((line) => (
-              <div key={line} className="flex justify-between border-b border-outline-variant/20 pb-4 text-sm">
-                <span>{line}</span>
-                <span className="uppercase tracking-[0.2em] text-secondary">activo</span>
+            {topRows.map((row) => (
+              <div
+                key={`${row.size}-${row.color}-${row.channel}`}
+                className="grid gap-3 border-b border-outline-variant/20 pb-4 text-sm md:grid-cols-[1fr_auto_auto]"
+              >
+                <span>
+                  {row.size} / {row.color} / {row.channel}
+                </span>
+                <span className="uppercase tracking-[0.2em] text-secondary">
+                  {row.units} unidades
+                </span>
+                <span className="font-bold">{row.revenueLabel}</span>
               </div>
             ))}
           </div>
