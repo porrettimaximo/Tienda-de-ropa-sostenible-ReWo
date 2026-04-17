@@ -37,6 +37,7 @@ export function HomePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/60 to-transparent" />
         <div className="relative z-10 max-w-4xl px-5 pb-16 md:px-12 md:pb-24">
+          <img src="/icon-512.png" alt="Logo ReWo" className="mb-8 h-32 w-32 object-contain" />
           <span className="mb-6 inline-block bg-secondary-container px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-on-secondary-container">
             Sostenibilidad Monolítica
           </span>
@@ -117,9 +118,9 @@ export function HomePage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex aspect-square flex-col justify-between bg-surface-container-lowest p-8">
-              <span className="text-3xl font-black">20%</span>
+              <span className="text-3xl font-black">-$100</span>
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                Descuento en tu primer canje
+                Descuento por cada 500 Puntos Eco
               </p>
             </div>
             <div className="flex aspect-square flex-col justify-between bg-inverse-surface p-8">

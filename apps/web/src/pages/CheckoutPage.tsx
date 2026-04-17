@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useCart } from "../components/CartContext";
-import { 
-  getStoredUser, 
+import {
+  getStoredUser,
   submitCheckout,
   getPromotions,
   calculateBestPromotion,
@@ -59,15 +59,15 @@ export function CheckoutPage() {
   }, []);
 
   // Calcular descuentos dinámicamente según promociones activas
-  const { discountAmount: estimatedPromotionDiscount, appliedPromotion } = 
+  const { discountAmount: estimatedPromotionDiscount, appliedPromotion } =
     calculateBestPromotion(
       items.map(item => ({ productSlug: item.productSlug, quantity: item.quantity })),
       promotions,
       subtotal
     );
-  
+
   const totalAfterPromo = Math.max(0, subtotal - estimatedPromotionDiscount);
-  
+
   useEffect(() => {
     if (isLoggedIn) {
       getCustomerAccount()
@@ -258,10 +258,7 @@ export function CheckoutPage() {
             Cierre consciente
           </h1>
         </div>
-        <p className="max-w-md text-sm leading-relaxed text-on-surface-variant">
-          Esta pantalla ya usa las variantes reales elegidas en la bolsa y puede disparar el
-          endpoint de checkout del backend.
-        </p>
+
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
@@ -284,9 +281,8 @@ export function CheckoutPage() {
                   ) : null}
                 </label>
                 <input
-                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
-                    !customerEmail && error.includes("datos") ? "border-error" : "border-outline/30"
-                  }`}
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${!customerEmail && error.includes("datos") ? "border-error" : "border-outline/30"
+                    }`}
                   onChange={(event) => setCustomerEmail(event.target.value)}
                   placeholder="jorgegonzalez@email.com"
                   type="email"
@@ -299,9 +295,8 @@ export function CheckoutPage() {
                   Nombre
                 </label>
                 <input
-                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
-                    !customerFirstName && error.includes("nombre") ? "border-error" : "border-outline/30"
-                  }`}
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${!customerFirstName && error.includes("nombre") ? "border-error" : "border-outline/30"
+                    }`}
                   onChange={(event) => setCustomerFirstName(event.target.value)}
                   placeholder="Jorge"
                   value={customerFirstName}
@@ -312,9 +307,8 @@ export function CheckoutPage() {
                   Apellido
                 </label>
                 <input
-                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
-                    !customerLastName && error.includes("nombre") ? "border-error" : "border-outline/30"
-                  }`}
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${!customerLastName && error.includes("nombre") ? "border-error" : "border-outline/30"
+                    }`}
                   onChange={(event) => setCustomerLastName(event.target.value)}
                   placeholder="Gonzalez"
                   value={customerLastName}
@@ -428,14 +422,14 @@ export function CheckoutPage() {
               </h2>
               <div className="mt-6">
                 <p className="text-sm text-on-surface-variant">
-                  Tienes <span className="font-bold text-inverse-surface">{availablePoints}</span> puntos disponibles. 
+                  Tienes <span className="font-bold text-inverse-surface">{availablePoints}</span> puntos disponibles.
                   Puedes usarlos en bloques de 500 para obtener descuentos directos.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   {[500, 1000, 1500, 2000, 2500, 3000].map(pts => {
                     const discount = (pts / 500) * 100;
                     const isDisabled = pts > availablePoints || discount > totalAfterPromo;
-                    
+
                     if (pts > availablePoints && pts > 500) return null; // Solo mostrar lo que puede alcanzar o el primer bloque
 
                     return (
@@ -444,13 +438,12 @@ export function CheckoutPage() {
                         type="button"
                         disabled={isDisabled}
                         onClick={() => setRedeemPoints(redeemPoints === pts ? 0 : pts)}
-                        className={`border px-6 py-4 text-[0.65rem] font-black uppercase tracking-[0.2em] transition-all ${
-                          redeemPoints === pts 
-                            ? "bg-inverse-surface text-surface border-inverse-surface" 
-                            : isDisabled 
-                              ? "opacity-30 border-outline/30 cursor-not-allowed" 
+                        className={`border px-6 py-4 text-[0.65rem] font-black uppercase tracking-[0.2em] transition-all ${redeemPoints === pts
+                            ? "bg-inverse-surface text-surface border-inverse-surface"
+                            : isDisabled
+                              ? "opacity-30 border-outline/30 cursor-not-allowed"
                               : "border-outline/30 hover:border-inverse-surface bg-white"
-                        }`}
+                          }`}
                       >
                         {pts} pts (-${discount} MXN)
                       </button>
@@ -465,23 +458,25 @@ export function CheckoutPage() {
               </div>
             </div>
           ) : !isLoggedIn ? (
-            <div className="border border-outline-variant/30 bg-[#f2f4f4] p-6">
+            <div className="border border-outline-variant/30 bg-[#f2f4f4] p-8">
               <p className="text-[0.7rem] font-black uppercase tracking-[0.3em] text-tertiary">
-                Beneficios de crear cuenta
+                Beneficios de unirse a ReWo
               </p>
               <h3 className="mt-4 font-headline text-2xl font-black uppercase tracking-tighter">
-                Suma puntos y canjea descuentos
+                Ganarias <span className="text-secondary">+{loyaltyPreview} puntos</span> con esta compra
               </h3>
+              <p className="mt-4 text-sm leading-relaxed text-on-surface-variant">
+                Registrate ahora para acumular estos puntos y canjearlos por descuentos en tus proximas compras sostenibles.
+              </p>
               <ul className="mt-6 space-y-2 text-sm text-on-surface-variant">
-                <li>1 punto cada $10 MXN (Puntos Eco).</li>
-                <li>500 puntos = $100 MXN de descuento.</li>
-                <li>Historial de compras y acceso rapido a tu perfil.</li>
+                <li>• 1 punto cada $10 MXN invertidos.</li>
+                <li>• 500 puntos equivalen a $100 MXN de descuento.</li>
               </ul>
               <Link
-                className="mt-6 inline-block border border-inverse-surface bg-white px-6 py-3 text-[0.7rem] font-black uppercase tracking-[0.25em] hover:bg-inverse-surface hover:text-surface"
-                to="/login"
+                className="mt-8 inline-block w-full bg-inverse-surface px-8 py-5 text-center text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary transition-all"
+                to="/register"
               >
-                Iniciar sesion / Registrarme
+                Registrarme ahora
               </Link>
             </div>
           ) : null}
@@ -671,7 +666,7 @@ export function CheckoutPage() {
               <p className="text-sm text-on-surface-variant">
                 Estás a punto de pagar <span className="font-bold">${estimatedTotal.toLocaleString("es-MX")} MXN</span> usando <span className="font-bold">{paymentMethod}</span>.
               </p>
-              
+
               {paymentMethod === "Tarjeta" && (
                 <div className="animate-pulse bg-surface p-4 rounded text-xs text-on-surface-variant text-left mt-4 border border-outline/30">
                   <div className="h-4 bg-outline/20 rounded w-3/4 mb-2"></div>

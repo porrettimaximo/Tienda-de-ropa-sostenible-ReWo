@@ -90,6 +90,14 @@ function App() {
           }
         />
         <Route
+          path="/register"
+          element={
+            <SiteShell>
+              <LoginPage defaultMode="register" />
+            </SiteShell>
+          }
+        />
+        <Route
           path="/account"
           element={
             <SiteShell>

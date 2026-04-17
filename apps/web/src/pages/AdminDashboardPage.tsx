@@ -9,8 +9,8 @@ export function AdminDashboardPage() {
   const [salesReport, setSalesReport] = useState<SalesReportRow[] | null>(null);
   const [kpis, setKpis] = useState<SalesKpis | null>(null);
   const [kpiChannel, setKpiChannel] = useState<"online" | "store">("online");
-  const [kpiStartDate, setKpiStartDate] = useState("");
-  const [kpiEndDate, setKpiEndDate] = useState("");
+  const [kpiStartDate, setKpiStartDate] = useState("2024-01-01");
+  const [kpiEndDate, setKpiEndDate] = useState(new Date().toISOString().split("T")[0]);
   const [isLoading, setIsLoading] = useState(true);
   const [kpisLoading, setKpisLoading] = useState(true);
 
@@ -23,6 +23,8 @@ export function AdminDashboardPage() {
         setSalesReport(reportData);
         setIsLoading(false);
       }
+    }).catch(() => {
+      if (active) setIsLoading(false);
     });
 
     return () => {
@@ -150,7 +152,7 @@ export function AdminDashboardPage() {
             </span>
           </div>
 
-          <div className="mt-8 space-y-4">
+          <div className="mt-8 space-y-4 max-h-[360px] overflow-y-auto pr-2">
             {topRows.map((row) => (
               <div
                 key={`${row.size}-${row.color}-${row.channel}`}
