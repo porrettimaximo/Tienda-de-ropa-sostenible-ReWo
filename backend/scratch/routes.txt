@@ -1,0 +1,41 @@
+﻿{'HEAD', 'GET'} /openapi.json
+{'HEAD', 'GET'} /docs
+{'HEAD', 'GET'} /docs/oauth2-redirect
+{'HEAD', 'GET'} /redoc
+{'GET'} /
+{'POST'} /auth/login/client
+{'POST'} /auth/login/admin
+{'POST'} /auth/register
+{'GET'} /health
+{'GET'} /products
+{'GET'} /products/{product_slug}
+{'GET'} /products/{product_slug}/variants
+{'POST'} /checkout
+{'POST'} /sales/store
+{'GET'} /admin/products
+{'POST'} /admin/products
+{'PUT'} /admin/products/{product_slug}
+{'POST'} /admin/products/{product_slug}/variants
+{'PUT'} /admin/products/{product_slug}/variants/{variant_id}
+{'GET'} /admin/promotions
+{'POST'} /admin/promotions
+{'PUT'} /admin/promotions/{promotion_id}
+{'PUT'} /admin/promotions/{promotion_id}/active
+{'DELETE'} /admin/promotions/{promotion_id}
+{'GET'} /admin/suppliers
+{'POST'} /admin/suppliers
+{'PUT'} /admin/suppliers/{supplier_id}
+{'DELETE'} /admin/suppliers/{supplier_id}
+{'DELETE'} /admin/products/{product_slug}
+{'PUT'} /admin/products/{product_slug}/image
+{'POST'} /admin/products/{product_slug}/image/upload
+{'POST'} /admin/products/{product_slug}/variants/{variant_id}/image/upload
+{'GET'} /admin/categories
+{'GET'} /loyalty/customers/{customer_id}
+{'GET'} /loyalty/customers/{customer_id}/orders
+{'GET'} /loyalty/orders/{order_id}
+{'PUT'} /loyalty/customers/{customer_id}
+{'GET'} /promotions
+{'GET'} /reports/sales-by-size-color
+{'GET'} /reports/overview
+{'GET'} /reports/kpis
