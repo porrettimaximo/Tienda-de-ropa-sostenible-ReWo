@@ -26,6 +26,8 @@ export function CheckoutPage() {
   const [shippingCity, setShippingCity] = useState("Caballito");
   const [shippingPostalCode, setShippingPostalCode] = useState("1405");
   const [shippingPhone, setShippingPhone] = useState("1112345678");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<"retiro_sucursal" | "envio_domicilio">(
     "retiro_sucursal"
   );
@@ -116,6 +118,15 @@ export function CheckoutPage() {
     );
   }
 
+  const handleCheckoutClick = () => {
+    if (items.length === 0) return;
+    if (paymentMethod === "Tarjeta" || paymentMethod === "Transferencia") {
+      setShowPaymentModal(true);
+    } else {
+      handleSubmit();
+    }
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) return;
 
@@ -159,10 +170,12 @@ export function CheckoutPage() {
         promotionLabel: order.promotion_label ?? null
       });
       clearCart();
+      if (setShowPaymentModal) setShowPaymentModal(false);
     } catch {
       setError("No se pudo confirmar la compra. Revisa que el backend este corriendo.");
     } finally {
       setSubmitting(false);
+      setPaymentProcessing(false);
     }
   };
 
@@ -415,7 +428,8 @@ export function CheckoutPage() {
                 </div>
                 <input
                   checked={shippingMethod === "envio_domicilio"}
-                  className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface"
+                  className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={paymentMethod === "Efectivo"}
                   onChange={() => setShippingMethod("envio_domicilio")}
                   type="radio"
                 />
@@ -430,11 +444,23 @@ export function CheckoutPage() {
                 </div>
                 <input
                   checked={shippingMethod === "retiro_sucursal"}
-                  className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface"
+                  className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={paymentMethod === "Efectivo"}
                   onChange={() => setShippingMethod("retiro_sucursal")}
                   type="radio"
                 />
               </label>
+
+              {paymentMethod === "Efectivo" && (
+                <div className="border border-outline-variant/30 bg-warning/10 p-4">
+                  <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-warning-dark">
+                    Atencion
+                  </p>
+                  <p className="mt-2 text-sm text-on-surface-variant">
+                    El pago en efectivo solo es valido para retiro en la sucursal.
+                  </p>
+                </div>
+              )}
 
               <div className="border border-outline-variant/30 bg-[#f2f4f4] p-4">
                 <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-tertiary">
@@ -454,25 +480,21 @@ export function CheckoutPage() {
             <div className="mt-6 grid gap-4">
               <select
                 className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
-                onChange={(event) => setPaymentMethod(event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setPaymentMethod(val);
+                  if (val === "Efectivo") {
+                    setShippingMethod("retiro_sucursal");
+                  }
+                }}
                 value={paymentMethod}
               >
                 <option value="Tarjeta">Tarjeta</option>
-                <option value="TDD">TDD</option>
+                <option value="Transferencia">Transferencia</option>
                 <option value="Efectivo">Efectivo</option>
               </select>
 
-              <div>
-                <input
-                  className="w-full border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={!isLoggedIn}
-                  min={0}
-                  onChange={(event) => setRedeemPoints(Number(event.target.value) || 0)}
-                  placeholder={isLoggedIn ? "Canjear puntos (multiplo de 500)" : "Inicia sesion para canjear puntos"}
-                  type="number"
-                  value={redeemPoints}
-                />
-              </div>
+
 
               <label className="flex items-center gap-3 text-sm">
                 <input
@@ -514,7 +536,7 @@ export function CheckoutPage() {
             <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
               Resumen de items
             </h2>
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-4 max-h-96 overflow-y-auto pr-2">
               {items.map((item) => (
                 <div
                   key={item.variantId}
@@ -570,7 +592,7 @@ export function CheckoutPage() {
           <button
             className="mt-8 w-full bg-inverse-surface px-8 py-4 text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
             disabled={submitting}
-            onClick={handleSubmit}
+            onClick={handleCheckoutClick}
             type="button"
           >
             {submitting ? "Procesando..." : "Confirmar compra"}
@@ -584,6 +606,58 @@ export function CheckoutPage() {
           {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
         </aside>
       </div>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md bg-white p-8 border border-outline/30">
+            <h2 className="font-headline text-2xl font-black uppercase tracking-tighter text-center mb-6">
+              Pasarela de Pago Segura
+            </h2>
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-on-surface-variant">
+                Estás a punto de pagar <span className="font-bold">${estimatedTotal.toLocaleString("es-MX")} MXN</span> usando <span className="font-bold">{paymentMethod}</span>.
+              </p>
+              
+              {paymentMethod === "Tarjeta" && (
+                <div className="animate-pulse bg-surface p-4 rounded text-xs text-on-surface-variant text-left mt-4 border border-outline/30">
+                  <div className="h-4 bg-outline/20 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-outline/20 rounded w-1/2 mb-2"></div>
+                  <div className="h-8 bg-outline/20 rounded w-full mb-2"></div>
+                </div>
+              )}
+
+              {paymentMethod === "Transferencia" && (
+                <div className="bg-[#f2f4f4] p-4 text-xs text-on-surface-variant text-left mt-4">
+                  <p className="font-bold mb-2 uppercase">Datos Bancarios:</p>
+                  <p>Banco: EcoBank</p>
+                  <p>CBU: 0000000000000000000000</p>
+                  <p>Alias: rewo.eco.mx</p>
+                </div>
+              )}
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  className="flex-1 border border-outline-variant/30 py-3 text-[0.65rem] font-black uppercase tracking-[0.2em] hover:bg-surface"
+                  onClick={() => setShowPaymentModal(false)}
+                  disabled={paymentProcessing || submitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="flex-1 bg-inverse-surface py-3 text-[0.65rem] font-black uppercase tracking-[0.2em] text-surface hover:bg-secondary disabled:opacity-50"
+                  onClick={async () => {
+                    setPaymentProcessing(true);
+                    await handleSubmit();
+                  }}
+                  disabled={paymentProcessing || submitting}
+                >
+                  {paymentProcessing || submitting ? "Procesando..." : "Confirmar Pago"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

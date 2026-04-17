@@ -10,17 +10,44 @@ export function LoginPage({ defaultMode = "login" }: { defaultMode?: Mode }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const validateForm = () => {
+    if (mode === "register") {
+      if (!fullName.trim()) {
+        setError("El nombre completo es requerido.");
+        return false;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(identifier)) {
+        setError("Por favor, introduce un email válido.");
+        return false;
+      }
+      if (password.length < 6) {
+        setError("La contraseña debe tener al menos 6 caracteres.");
+        return false;
+      }
+      if (!/^\d{10}$/.test(phone)) {
+        setError("El número de teléfono debe tener 10 dígitos.");
+        return false;
+      }
+    }
+    return true;
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       if (mode === "register") {
-        await registerClient({ fullName, email: identifier, password });
+        await registerClient({ fullName, email: identifier, password, phone });
         navigate("/account");
         return;
       }
@@ -83,12 +110,20 @@ export function LoginPage({ defaultMode = "login" }: { defaultMode?: Mode }) {
 
           <div className="mt-8 space-y-4">
             {mode === "register" ? (
-              <input
-                className="w-full border border-outline/30 px-4 py-4 text-sm"
-                onChange={(event) => setFullName(event.target.value)}
-                placeholder="Nombre completo"
-                value={fullName}
-              />
+              <>
+                <input
+                  className="w-full border border-outline/30 px-4 py-4 text-sm"
+                  onChange={(event) => setFullName(event.target.value)}
+                  placeholder="Nombre completo"
+                  value={fullName}
+                />
+                <input
+                  className="w-full border border-outline/30 px-4 py-4 text-sm"
+                  onChange={(event) => setPhone(event.target.value)}
+                  placeholder="Número de teléfono"
+                  value={phone}
+                />
+              </>
             ) : null}
             <input
               className="w-full border border-outline/30 px-4 py-4 text-sm"

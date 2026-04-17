@@ -15,44 +15,31 @@
 - Cliente DB/Auth: `supabase-py`
 - UI: `Tailwind CSS`
 - Validacion: `Zod`
-- Testing sugerido:
+- Testing:
   - frontend: `Vitest` + `Testing Library`
   - backend: `Pytest`
 
 ## Entidades base
 
 - Usuario
-- Cliente
 - Producto
-- Variante
 - Categoria
-- Talla
-- Color
-- Inventario
-- Promocion
-- Combo
-- Proveedor
+- Variante
 - Orden
 - Item de orden
 - Direccion
-- Movimiento de puntos
 
 ## Endpoints iniciales sugeridos
 
 - `GET /health`
 - `GET /products`
-- `GET /products/{slug}`
-- `GET /products/{slug}/variants`
+- `GET /products/:id`
 - `POST /auth/login`
 - `GET /auth/me`
 - `GET /admin/products`
 - `POST /admin/products`
 - `PUT /admin/products/:id`
 - `DELETE /admin/products/:id`
-- `POST /admin/variants`
-- `POST /sales/store`
-- `GET /reports/sales-by-size-color`
-- `GET /loyalty/customers/:id`
 
 ## Deploy recomendado
 
@@ -63,29 +50,3 @@
 ## Motivo de esta eleccion
 
 Esta combinacion equilibra velocidad de desarrollo, buena experiencia de usuario, facilidad de despliegue y una historia tecnica facil de defender en el video tecnico.
-
-## Modulos funcionales reales del proyecto
-
-- Catalogo con variantes por talla y color
-- Stock por variante
-- Ventas online
-- Registro de ventas en tienda fisica
-- Promociones y combos
-- Programa de puntos
-- Gestion de proveedores eticos
-- Reporte de ventas por talla y color
-
-## Bloques editoriales ya definidos para frontend
-
-- Banner de `Combos de Temporada`
-- Seccion `Programa de Lealtad / Puntos Eco`
-- Seccion `Proveedores Eticos`
-
-Estos bloques no son decorativos: responden directamente a requerimientos de promociones, lealtad y transparencia.
-
-## Estado actual de implementacion
-
-- Frontend base en `React + Vite + Tailwind`
-- Backend base en `FastAPI`
-- Endpoints demo listos para productos, loyalty y reportes
-- Esquema SQL inicial listo para ejecutar en Supabase

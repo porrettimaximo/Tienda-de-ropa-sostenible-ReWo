@@ -10,7 +10,7 @@ __pycache__/
 .mypy_cache/
 .idea/
 .cache/
-.env
+apps/api/.env
 .env.local
 .env.*.local
 coverage/

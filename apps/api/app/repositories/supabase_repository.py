@@ -121,6 +121,7 @@ class SupabaseRepository:
                     name=row["name"],
                     slug=row["slug"],
                     description=row.get("description") or "",
+                    image_url=row.get("image_url"),
                     category=categories.get(
                         row.get("category_id"),
                         Category(id="uncategorized", name="Sin categoria", slug="sin-categoria"),
@@ -163,6 +164,7 @@ class SupabaseRepository:
         client = self._client()
         rows = client.table("customers").select("*").eq("id", customer_id).limit(1).execute().data or []
         if not rows:
+            # Maybe look by email if it's an email somehow, or just return 404
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         row = rows[0]
         self._ensure_loyalty_bootstrap(customer_id=row["id"], current_points=int(row.get("loyalty_points") or 0))
@@ -175,14 +177,16 @@ class SupabaseRepository:
             loyalty_points=available_points,
         )
 
-    def create_customer(self, *, full_name: str, email: str) -> LoyaltyCustomer:
+    def create_customer(
+        self, *, full_name: str, email: str, phone: str | None, id: str | None = None
+    ) -> LoyaltyCustomer:
         client = self._client()
         normalized = (email or "").strip().lower()
         existing = client.table("customers").select("*").eq("email", normalized).limit(1).execute().data or []
         if existing:
             raise HTTPException(status_code=409, detail="Email ya registrado")
 
-        customer_id = str(uuid4())
+        customer_id = id or str(uuid4())
         inserted = (
             client.table("customers")
             .insert(
@@ -190,6 +194,7 @@ class SupabaseRepository:
                     "id": customer_id,
                     "full_name": full_name,
                     "email": normalized,
+                    "phone": phone,
                     "loyalty_points": 0,
                 }
             )
@@ -199,7 +204,7 @@ class SupabaseRepository:
         if not inserted:
             raise HTTPException(status_code=500, detail="No se pudo crear el cliente")
         self._ensure_loyalty_bootstrap(customer_id=customer_id, current_points=0)
-        return LoyaltyCustomer(id=customer_id, full_name=full_name, email=normalized, phone=None, loyalty_points=0)
+        return LoyaltyCustomer(id=customer_id, full_name=full_name, email=normalized, phone=phone, loyalty_points=0)
 
     def update_customer(
         self,
@@ -210,7 +215,14 @@ class SupabaseRepository:
         phone: str | None,
     ) -> LoyaltyCustomer:
         client = self._client()
-        current = self.get_customer(customer_id)
+        
+        try:
+            current = self.get_customer(customer_id)
+            current_email = current.email
+            is_new = False
+        except HTTPException:
+            current_email = None
+            is_new = True
 
         normalized_email = (email or "").strip().lower() if email is not None else None
         if normalized_email:
@@ -227,13 +239,24 @@ class SupabaseRepository:
             if existing:
                 raise HTTPException(status_code=409, detail="Email ya registrado")
 
-        client.table("customers").update(
-            {
-                "full_name": full_name,
-                "email": normalized_email if email is not None else current.email,
-                "phone": phone,
-            }
-        ).eq("id", customer_id).execute()
+        if is_new:
+            client.table("customers").insert(
+                {
+                    "id": customer_id,
+                    "full_name": full_name,
+                    "email": normalized_email,
+                    "phone": phone,
+                    "loyalty_points": 0,
+                }
+            ).execute()
+        else:
+            client.table("customers").update(
+                {
+                    "full_name": full_name,
+                    "email": normalized_email if email is not None else current_email,
+                    "phone": phone,
+                }
+            ).eq("id", customer_id).execute()
 
         updated = self.get_customer(customer_id)
         return LoyaltyCustomer(
@@ -274,6 +297,7 @@ class SupabaseRepository:
                 continue
             items_by_order[row["order_id"]].append(
                 OrderItem(
+                    product_id=product.id,
                     product_slug=product.slug,
                     product_name=product.name,
                     variant_id=variant.id,
@@ -309,6 +333,14 @@ class SupabaseRepository:
                 invoice_business_name=row.get("invoice_business_name"),
                 redeemed_points=row.get("redeemed_points") or 0,
                 notes=row.get("notes"),
+                shipping_method=row.get("shipping_method"),
+                shipping_address_line1=row.get("shipping_address_line1"),
+                shipping_address_line2=row.get("shipping_address_line2"),
+                shipping_country=row.get("shipping_country"),
+                shipping_province=row.get("shipping_province"),
+                shipping_city=row.get("shipping_city"),
+                shipping_postal_code=row.get("shipping_postal_code"),
+                shipping_phone=row.get("shipping_phone"),
                 items=items_by_order.get(row["id"], []),
             )
             for row in orders_rows
@@ -339,6 +371,7 @@ class SupabaseRepository:
                 continue
             items.append(
                 OrderItem(
+                    product_id=product.id,
                     product_slug=product.slug,
                     product_name=product.name,
                     variant_id=variant.id,
@@ -373,6 +406,14 @@ class SupabaseRepository:
             invoice_business_name=row.get("invoice_business_name"),
             redeemed_points=row.get("redeemed_points") or 0,
             notes=row.get("notes"),
+            shipping_method=row.get("shipping_method"),
+            shipping_address_line1=row.get("shipping_address_line1"),
+            shipping_address_line2=row.get("shipping_address_line2"),
+            shipping_country=row.get("shipping_country"),
+            shipping_province=row.get("shipping_province"),
+            shipping_city=row.get("shipping_city"),
+            shipping_postal_code=row.get("shipping_postal_code"),
+            shipping_phone=row.get("shipping_phone"),
             items=items,
         )
 
@@ -389,6 +430,7 @@ class SupabaseRepository:
                     "slug": payload.slug,
                     "description": payload.description,
                     "base_price": 0,
+                    "image_url": payload.image_url,
                     "sustainability_label": payload.sustainability_label,
                     "sustainability_score": payload.sustainability_score,
                 }
@@ -398,6 +440,21 @@ class SupabaseRepository:
         )
         if not inserted:
             raise HTTPException(status_code=500, detail="No se pudo crear el producto")
+            
+        # Create initial variants if provided
+        product_id = inserted[0]["id"]
+        for var in payload.initial_variants:
+            client.table("product_variants").insert({
+                "id": str(uuid4()),
+                "product_id": product_id,
+                "sku": var.sku,
+                "size": var.size,
+                "color": var.color,
+                "stock": var.stock,
+                "price_override": var.price,
+                "image_url": var.image_url,
+            }).execute()
+
         return self.get_product(payload.slug)
 
     def update_product(self, product_slug: str, payload: ProductUpsertRequest) -> ProductDetail:
@@ -430,6 +487,7 @@ class SupabaseRepository:
                     "color": payload.color,
                     "stock": payload.stock,
                     "price_override": payload.price,
+                    "image_url": payload.image_url,
                 }
             )
             .execute()
@@ -451,6 +509,7 @@ class SupabaseRepository:
                 "color": payload.color,
                 "stock": payload.stock,
                 "price_override": payload.price,
+                "image_url": payload.image_url,
             }
         ).eq("id", variant_id).execute()
         for variant in self.get_product(product_slug).variants:
@@ -475,10 +534,38 @@ class SupabaseRepository:
                 raise HTTPException(status_code=400, detail="Venta tienda requiere metodo de pago")
 
         customer = None
+        
+        # Try fetching by ID first
         if payload.customer_id:
-            customer = self.get_customer(payload.customer_id)
-        elif payload.customer_email:
-            customer = self._find_customer(payload.customer_email)
+            try:
+                customer = self.get_customer(payload.customer_id)
+            except HTTPException:
+                pass
+        
+        # If not found by ID or no ID provided, try fetching by email
+        if customer is None and payload.customer_email:
+            try:
+                customer = self._find_customer(payload.customer_email)
+            except HTTPException:
+                pass
+                
+        # If STILL not found but we have an email and name, create it!
+        if customer is None and payload.customer_email:
+            try:
+                # Insert directly to preserve the auth.user ID if provided
+                new_id = payload.customer_id or str(uuid4())
+                client = self._client()
+                client.table("customers").insert({
+                    "id": new_id,
+                    "full_name": payload.customer_name or "Cliente Anonimo",
+                    "email": payload.customer_email.strip().lower(),
+                    "phone": payload.shipping_phone,
+                    "loyalty_points": 0,
+                }).execute()
+                customer = self.get_customer(new_id)
+            except Exception:
+                # If creating fails, proceed without customer
+                pass
 
         items: list[OrderItem] = []
         subtotal = 0.0
@@ -499,6 +586,7 @@ class SupabaseRepository:
             product_slugs.append(product.slug)
             items.append(
                 OrderItem(
+                    product_id=product.id,
                     product_slug=product.slug,
                     product_name=product.name,
                     variant_id=variant.id,
@@ -564,16 +652,23 @@ class SupabaseRepository:
                 "invoice_rfc": payload.invoice_rfc,
                 "invoice_business_name": payload.invoice_business_name,
                 "notes": payload.notes,
+                "shipping_method": payload.shipping_method,
+                "shipping_address_line1": payload.shipping_address_line1,
+                "shipping_address_line2": payload.shipping_address_line2,
+                "shipping_country": payload.shipping_country,
+                "shipping_province": payload.shipping_province,
+                "shipping_city": payload.shipping_city,
+                "shipping_postal_code": payload.shipping_postal_code,
+                "shipping_phone": payload.shipping_phone,
             }
         ).execute()
 
         for item in items:
-            product = self.get_product(item.product_slug)
             client.table("order_items").insert(
                 {
                     "id": str(uuid4()),
                     "order_id": order_id,
-                    "product_id": product.id,
+                    "product_id": item.product_id,
                     "variant_id": item.variant_id,
                     "quantity": item.quantity,
                     "unit_price": item.unit_price,
@@ -634,6 +729,14 @@ class SupabaseRepository:
             invoice_rfc=payload.invoice_rfc,
             invoice_business_name=payload.invoice_business_name,
             notes=payload.notes,
+            shipping_method=payload.shipping_method,
+            shipping_address_line1=payload.shipping_address_line1,
+            shipping_address_line2=payload.shipping_address_line2,
+            shipping_country=payload.shipping_country,
+            shipping_province=payload.shipping_province,
+            shipping_city=payload.shipping_city,
+            shipping_postal_code=payload.shipping_postal_code,
+            shipping_phone=payload.shipping_phone,
             items=items,
         )
 
@@ -903,7 +1006,16 @@ class SupabaseRepository:
     def _find_customer(self, identifier: str) -> LoyaltyCustomer:
         client = self._client()
         by_email = client.table("customers").select("*").eq("email", identifier).limit(1).execute().data or []
-        rows = by_email or client.table("customers").select("*").eq("id", identifier).limit(1).execute().data or []
+        
+        rows = by_email
+        if not rows:
+            # Only query by ID if identifier looks like a UUID
+            if len(identifier) == 36 and "-" in identifier:
+                try:
+                    rows = client.table("customers").select("*").eq("id", identifier).limit(1).execute().data or []
+                except Exception:
+                    pass
+                    
         if not rows:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         row = rows[0]
@@ -1059,6 +1171,65 @@ class SupabaseRepository:
                     continue
             total += points
         return max(0, total)
+
+    def delete_supplier(self, supplier_id: str) -> None:
+        """Delete a supplier by ID"""
+        client = self._client()
+        client.table("suppliers").delete().eq("id", supplier_id).execute()
+
+    def delete_product(self, product_slug: str) -> None:
+        """Delete a product by slug"""
+        client = self._client()
+        client.table("products").delete().eq("slug", product_slug).execute()
+
+    def update_product_image(self, product_slug: str, image_url: str) -> ProductDetail:
+        """Update product image URL"""
+        client = self._client()
+        client.table("products").update({"image_url": image_url}).eq("slug", product_slug).execute()
+        # Return updated product
+        return self.get_product(product_slug)
+
+    def upload_product_image(self, product_slug: str, filename: str, file_bytes: bytes, content_type: str) -> str:
+        """Upload product image to storage and return public URL"""
+        client = self._client()
+        ext = filename.split(".")[-1] if "." in filename else "jpg"
+        new_filename = f"{product_slug}-{uuid4().hex[:8]}.{ext}"
+        
+        # Upload to products bucket
+        client.storage.from_("products").upload(
+            new_filename, 
+            file_bytes, 
+            file_options={"content-type": content_type}
+        )
+        
+        # Get public URL
+        public_url = client.storage.from_("products").get_public_url(new_filename)
+        
+        # Update product
+        client.table("products").update({"image_url": public_url}).eq("slug", product_slug).execute()
+        return public_url
+
+    def upload_variant_image(self, product_slug: str, variant_id: str, filename: str, file_bytes: bytes, content_type: str) -> str:
+        """Upload variant image to storage and return public URL"""
+        client = self._client()
+        ext = filename.split(".")[-1] if "." in filename else "jpg"
+        new_filename = f"var-{variant_id[:8]}-{uuid4().hex[:8]}.{ext}"
+        
+        # Upload to products bucket
+        client.storage.from_("products").upload(
+            new_filename,
+            file_bytes,
+            file_options={"content-type": content_type}
+        )
+        
+        # Get public URL
+        public_url = client.storage.from_("products").get_public_url(new_filename)
+        
+        # Update variant image_url
+        client.table("product_variants").update({"image_url": public_url}).eq("id", variant_id).execute()
+        
+        return public_url
+
 
     def _client(self):
         if self.client is None:

@@ -41,6 +41,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1)
     email: str = Field(min_length=3)
     password: str = Field(min_length=1)
+    phone: str | None = None
 
 
 class CustomerUpdateRequest(BaseModel):
@@ -81,6 +82,15 @@ class CheckoutRequest(BaseModel):
     items: list[CheckoutItemRequest]
 
 
+class VariantUpsertRequest(BaseModel):
+    sku: str = Field(min_length=1)
+    size: str = Field(min_length=1)
+    color: str = Field(min_length=1)
+    stock: int = Field(ge=0)
+    price: float = Field(ge=0)
+    image_url: str | None = None
+
+
 class ProductUpsertRequest(BaseModel):
     name: str = Field(min_length=1)
     slug: str = Field(min_length=1)
@@ -89,14 +99,8 @@ class ProductUpsertRequest(BaseModel):
     supplier_id: str | None = None
     sustainability_label: str | None = None
     sustainability_score: int | None = Field(default=None, ge=0, le=100)
-
-
-class VariantUpsertRequest(BaseModel):
-    sku: str = Field(min_length=1)
-    size: str = Field(min_length=1)
-    color: str = Field(min_length=1)
-    stock: int = Field(ge=0)
-    price: float = Field(ge=0)
+    image_url: str | None = None
+    initial_variants: list[VariantUpsertRequest] = Field(default_factory=list)
 
 
 class SupplierUpsertRequest(BaseModel):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 
 from app.domain import ProductDetail, Promotion, Supplier
 from app.security import require_admin
@@ -120,3 +120,59 @@ def update_supplier(
     service: SuppliersService = Depends(get_suppliers_service),
 ) -> Supplier:
     return service.update_supplier(supplier_id, payload)
+
+
+@router.delete("/suppliers/{supplier_id}")
+def delete_supplier(
+    supplier_id: str,
+    service: SuppliersService = Depends(get_suppliers_service),
+) -> dict:
+    """Delete a supplier by ID"""
+    service.delete_supplier(supplier_id)
+    return {"message": "Supplier deleted successfully"}
+
+
+@router.delete("/products/{product_slug}")
+def delete_product(
+    product_slug: str,
+    service: CatalogService = Depends(get_catalog_service),
+) -> dict:
+    """Delete a product by slug"""
+    service.delete_product(product_slug)
+    return {"message": "Product deleted successfully"}
+
+
+@router.put("/products/{product_slug}/image")
+def update_product_image(
+    product_slug: str,
+    image_url: str,
+    service: CatalogService = Depends(get_catalog_service),
+) -> AdminProductResponse:
+    """Update product image URL"""
+    return service.update_product_image(product_slug, image_url)
+
+
+@router.post("/products/{product_slug}/image/upload", response_model=AdminProductResponse)
+async def upload_product_image(
+    product_slug: str,
+    file: UploadFile = File(...),
+    service: CatalogService = Depends(get_catalog_service),
+) -> AdminProductResponse:
+    """Upload product image to storage and update URL"""
+    file_bytes = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    return service.upload_product_image(product_slug, file.filename, file_bytes, content_type)
+    
+
+@router.post("/products/{product_slug}/variants/{variant_id}/image/upload", response_model=AdminVariantResponse)
+async def upload_variant_image(
+    product_slug: str,
+    variant_id: str,
+    file: UploadFile = File(...),
+    service: CatalogService = Depends(get_catalog_service),
+) -> AdminVariantResponse:
+    """Upload variant image to storage and update URL"""
+    file_bytes = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    return service.upload_variant_image(product_slug, variant_id, file.filename, file_bytes, content_type)
+

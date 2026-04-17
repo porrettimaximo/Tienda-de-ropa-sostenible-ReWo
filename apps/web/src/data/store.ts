@@ -127,11 +127,11 @@ export const cartItems = [
 ];
 
 export const accountSummary = {
-  name: "María Fernández",
-  email: "maria@ecowear.mx",
-  ecoPoints: 1280,
-  tier: "VIP Tierra",
-  nextReward: "20% de descuento en colección cápsula"
+  name: "Cargando...",
+  email: "...",
+  ecoPoints: 0,
+  tier: "...",
+  nextReward: "..."
 };
 
 export const adminSummary = {

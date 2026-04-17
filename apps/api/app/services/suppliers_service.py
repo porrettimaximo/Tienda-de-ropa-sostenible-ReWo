@@ -16,3 +16,7 @@ class SuppliersService:
     def update_supplier(self, supplier_id: str, payload: SupplierUpsertRequest) -> Supplier:
         return self.repository.update_supplier(supplier_id, payload)
 
+    def delete_supplier(self, supplier_id: str) -> None:
+        """Delete a supplier by ID"""
+        self.repository.delete_supplier(supplier_id)
+

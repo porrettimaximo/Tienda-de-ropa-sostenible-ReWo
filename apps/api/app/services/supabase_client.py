@@ -8,11 +8,21 @@ def get_supabase_service_client() -> Client | None:
     if not settings.supabase_url or not key:
         return None
 
-    return create_client(settings.supabase_url, key)
+    try:
+        return create_client(settings.supabase_url, key)
+    except Exception as e:
+        import logging
+        logging.error(f"Error al inicializar cliente de Supabase (admin): {e}")
+        return None
 
 
 def get_supabase_anon_client() -> Client | None:
     if not settings.supabase_url or not settings.supabase_key:
         return None
 
-    return create_client(settings.supabase_url, settings.supabase_key)
+    try:
+        return create_client(settings.supabase_url, settings.supabase_key)
+    except Exception as e:
+        import logging
+        logging.error(f"Error al inicializar cliente de Supabase (anon): {e}")
+        return None

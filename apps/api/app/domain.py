@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 SalesChannel = Literal["online", "store"]
 PromotionType = Literal["percentage", "fixed", "combo"]
-PaymentMethod = Literal["Efectivo", "Tarjeta", "TDD"]
+PaymentMethod = Literal["Efectivo", "Tarjeta", "Transferencia"]
 
 
 class Category(BaseModel):
@@ -31,6 +31,8 @@ class ProductVariant(BaseModel):
     color: str
     stock: int = Field(ge=0)
     price: float = Field(ge=0)
+    image_url: str | None = None
+
 
 
 class ProductSummary(BaseModel):
@@ -49,6 +51,7 @@ class ProductDetail(BaseModel):
     name: str
     slug: str
     description: str
+    image_url: str | None = None
     category: Category
     supplier: Supplier | None = None
     sustainability_label: str | None = None
@@ -98,6 +101,7 @@ class AuthUser(BaseModel):
 
 
 class OrderItem(BaseModel):
+    product_id: str
     product_slug: str
     product_name: str
     variant_id: str
@@ -129,6 +133,14 @@ class OrderSummary(BaseModel):
     invoice_rfc: str | None = None
     invoice_business_name: str | None = None
     notes: str | None = None
+    shipping_method: str | None = None
+    shipping_address_line1: str | None = None
+    shipping_address_line2: str | None = None
+    shipping_country: str | None = None
+    shipping_province: str | None = None
+    shipping_city: str | None = None
+    shipping_postal_code: str | None = None
+    shipping_phone: str | None = None
     items: list[OrderItem]
 
 

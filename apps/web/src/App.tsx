@@ -14,6 +14,7 @@ import { CheckoutPage } from "./pages/CheckoutPage";
 import { CollectionPage } from "./pages/CollectionPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { ManifestoPage } from "./pages/ManifestoPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -29,6 +30,14 @@ function App() {
           element={
             <SiteShell>
               <HomePage />
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/manifesto"
+          element={
+            <SiteShell>
+              <ManifestoPage />
             </SiteShell>
           }
         />

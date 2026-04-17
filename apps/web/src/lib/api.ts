@@ -23,6 +23,7 @@ type ApiProductDetail = {
   name: string;
   slug: string;
   description: string;
+  image_url?: string | null;
   category: {
     id: string;
     name: string;
@@ -44,6 +45,7 @@ type ApiProductDetail = {
     color: string;
     stock: number;
     price: number;
+    image_url?: string | null;
   }>;
 };
 
@@ -74,6 +76,14 @@ type ApiOrderSummary = {
   invoice_rfc?: string | null;
   invoice_business_name?: string | null;
   notes?: string | null;
+  shipping_method?: string | null;
+  shipping_address_line1?: string | null;
+  shipping_address_line2?: string | null;
+  shipping_country?: string | null;
+  shipping_province?: string | null;
+  shipping_city?: string | null;
+  shipping_postal_code?: string | null;
+  shipping_phone?: string | null;
   items: Array<{
     product_slug: string;
     product_name: string;
@@ -140,6 +150,14 @@ type ApiCheckoutResponse = {
     invoice_rfc?: string | null;
     invoice_business_name?: string | null;
     notes?: string | null;
+    shipping_method?: string | null;
+    shipping_address_line1?: string | null;
+    shipping_address_line2?: string | null;
+    shipping_country?: string | null;
+    shipping_province?: string | null;
+    shipping_city?: string | null;
+    shipping_postal_code?: string | null;
+    shipping_phone?: string | null;
     items: Array<{
       product_slug: string;
       product_name: string;
@@ -161,6 +179,8 @@ type ProductPayload = {
   supplierId?: string;
   sustainabilityLabel?: string;
   sustainabilityScore?: number;
+  imageUrl?: string;
+  initialVariants?: VariantPayload[];
 };
 
 type VariantPayload = {
@@ -169,6 +189,7 @@ type VariantPayload = {
   color: string;
   stock: number;
   price: number;
+  image_url?: string | null;
 };
 
 export type CatalogVariant = {
@@ -179,6 +200,7 @@ export type CatalogVariant = {
   stock: number;
   price: number;
   priceLabel: string;
+  image_url?: string | null;
 };
 
 export type CatalogProduct = {
@@ -285,6 +307,14 @@ export type CustomerOrder = {
   loyaltyPoints: number;
   paymentMethod?: string | null;
   notes?: string | null;
+  shippingMethod?: string | null;
+  shippingAddressLine1?: string | null;
+  shippingAddressLine2?: string | null;
+  shippingCountry?: string | null;
+  shippingProvince?: string | null;
+  shippingCity?: string | null;
+  shippingPostalCode?: string | null;
+  shippingPhone?: string | null;
   items: Array<{
     productSlug: string;
     productName: string;
@@ -371,6 +401,7 @@ export async function registerClient(payload: {
   fullName: string;
   email: string;
   password: string;
+  phone: string;
 }) {
   if (!payload.fullName || !payload.email || !payload.password) {
     throw new Error("Completa nombre, email y contrasena");
@@ -386,7 +417,8 @@ export async function registerClient(payload: {
     body: JSON.stringify({
       full_name: payload.fullName,
       email: payload.email,
-      password: payload.password
+      password: payload.password,
+      phone: payload.phone
     })
   });
 
@@ -488,7 +520,8 @@ function mapDetail(product: ApiProductDetail): CatalogProduct {
     color: variant.color,
     stock: variant.stock,
     price: variant.price,
-    priceLabel: formatCurrency(variant.price)
+    priceLabel: formatCurrency(variant.price),
+    image_url: variant.image_url
   }));
   const price = Math.min(...variants.map((variant) => variant.price));
 
@@ -499,7 +532,7 @@ function mapDetail(product: ApiProductDetail): CatalogProduct {
     subtitle: fallback?.subtitle ?? product.sustainability_label ?? product.category.name,
     priceLabel: formatCurrency(price),
     numericPrice: price,
-    image: fallback?.image ?? mockProducts[0].image,
+    image: product.image_url ?? fallback?.image ?? mockProducts[0].image,
     description: product.description,
     colors: [...new Set(variants.map((variant) => variant.color))],
     sizes: [...new Set(variants.map((variant) => variant.size))],
@@ -523,7 +556,9 @@ function mapProductPayload(payload: ProductPayload) {
     category_id: payload.categoryId,
     supplier_id: payload.supplierId,
     sustainability_label: payload.sustainabilityLabel,
-    sustainability_score: payload.sustainabilityScore
+    sustainability_score: payload.sustainabilityScore,
+    image_url: payload.imageUrl,
+    initial_variants: (payload.initialVariants || []).map(mapVariantPayload)
   };
 }
 
@@ -533,7 +568,8 @@ function mapVariantPayload(payload: VariantPayload) {
     size: payload.size,
     color: payload.color,
     stock: payload.stock,
-    price: payload.price
+    price: payload.price,
+    image_url: payload.image_url
   };
 }
 
@@ -556,19 +592,39 @@ export async function getCatalogProduct(slug: string) {
 }
 
 export async function getCustomerAccount() {
+  const user = readStoredUser();
+  const customerId = user?.id;
+  if (!customerId) {
+    throw new Error("No hay sesion activa");
+  }
+
   try {
-    const user = readStoredUser();
-    const customerId = user?.id ?? "cus-maria-fernandez";
     const data = await requestJson<ApiAccountSummary>(`/loyalty/customers/${customerId}`);
+    const ecoPoints = data.loyalty_points || 0;
+    
+    let tier = "Eco Starter";
+    let nextReward = "Cupón 10% OFF en 100 puntos";
+    if (ecoPoints >= 500) {
+       tier = "Eco Champion";
+       nextReward = "Envío Gratis Permanente en 1000 puntos";
+    } else if (ecoPoints >= 100) {
+       tier = "Eco Lover";
+       nextReward = `Cupón 15% OFF en ${500 - ecoPoints} puntos`;
+    } else {
+       nextReward = `Cupón 10% OFF en ${100 - ecoPoints} puntos`;
+    }
+
     return {
-      ...mockAccountSummary,
       name: data.full_name,
-      email: data.email ?? mockAccountSummary.email,
-      ecoPoints: data.loyalty_points,
-      phone: data.phone ?? ""
+      email: data.email ?? "",
+      ecoPoints: ecoPoints,
+      phone: data.phone ?? "",
+      tier: tier,
+      nextReward: nextReward
     };
-  } catch {
-    return mockAccountSummary;
+  } catch (error) {
+    console.error("Error fetching account summary:", error);
+    throw error;
   }
 }
 
@@ -585,6 +641,14 @@ export async function getCustomerOrders(customerId = "cus-maria-fernandez"): Pro
       loyaltyPoints: order.loyalty_points_earned,
       paymentMethod: order.payment_method,
       notes: order.notes,
+      shippingMethod: order.shipping_method,
+      shippingAddressLine1: order.shipping_address_line1,
+      shippingAddressLine2: order.shipping_address_line2,
+      shippingCountry: order.shipping_country,
+      shippingProvince: order.shipping_province,
+      shippingCity: order.shipping_city,
+      shippingPostalCode: order.shipping_postal_code,
+      shippingPhone: order.shipping_phone,
       items: order.items.map((item) => ({
         productSlug: item.product_slug,
         productName: item.product_name,
@@ -611,6 +675,14 @@ export async function getCustomerOrder(orderId: string): Promise<CustomerOrder |
       loyaltyPoints: data.loyalty_points_earned,
       paymentMethod: data.payment_method,
       notes: data.notes,
+      shippingMethod: data.shipping_method,
+      shippingAddressLine1: data.shipping_address_line1,
+      shippingAddressLine2: data.shipping_address_line2,
+      shippingCountry: data.shipping_country,
+      shippingProvince: data.shipping_province,
+      shippingCity: data.shipping_city,
+      shippingPostalCode: data.shipping_postal_code,
+      shippingPhone: data.shipping_phone,
       items: data.items.map((item) => ({
         productSlug: item.product_slug,
         productName: item.product_name,
@@ -1127,6 +1199,68 @@ export async function createAdminVariant(
   };
 }
 
+export async function deleteAdminProduct(productSlug: string): Promise<void> {
+  await requestJson(`/admin/products/${productSlug}`, {
+    method: "DELETE"
+  });
+}
+
+export async function updateAdminProductImage(productSlug: string, imageUrl: string): Promise<AdminProduct> {
+  const response = await requestJson<{ product: ApiProductDetail }>(
+    `/admin/products/${productSlug}/image?image_url=${encodeURIComponent(imageUrl)}`,
+    {
+      method: "PUT"
+    }
+  );
+
+  return mapDetail(response.product);
+}
+
+export async function uploadAdminProductImage(productSlug: string, file: File): Promise<AdminProduct> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await requestJson<{ product: ApiProductDetail }>(
+    `/admin/products/${productSlug}/image/upload`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  return mapDetail(response.product);
+}
+
+export async function uploadAdminVariantImage(
+  productSlug: string,
+  variantId: string,
+  file: File
+): Promise<CatalogVariant> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await requestJson<{ variant: ApiProductDetail["variants"][number] }>(
+    `/admin/products/${productSlug}/variants/${variantId}/image/upload`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  return {
+    ...response.variant,
+    priceLabel: formatCurrency(response.variant.price),
+    image_url: response.variant.image_url
+  };
+}
+
+
+export async function deleteAdminSupplier(supplierId: string): Promise<void> {
+  await requestJson(`/admin/suppliers/${supplierId}`, {
+    method: "DELETE"
+  });
+}
+
 export async function signInClient(email: string, password: string) {
   if (!email || !password) {
     throw new Error("Completa email y contrasena");
@@ -1240,15 +1374,26 @@ export async function updateCustomerProfile(payload: { fullName: string; email: 
 export async function getCustomerProfile() {
   const user = readStoredUser();
   const customerId = user?.id ?? "cus-maria-fernandez";
-  const data = await requestJson<ApiAccountSummary>(`/loyalty/customers/${customerId}`);
-  return {
-    id: data.id,
-    fullName: data.full_name,
-    email: data.email ?? "",
-    phone: data.phone ?? "",
-    ecoPoints: data.loyalty_points,
-    role: user?.role ?? "client"
-  };
+  try {
+    const data = await requestJson<ApiAccountSummary>(`/loyalty/customers/${customerId}`);
+    return {
+      id: data.id,
+      fullName: data.full_name,
+      email: data.email ?? "",
+      phone: data.phone ?? "",
+      ecoPoints: data.loyalty_points,
+      role: user?.role ?? "client"
+    };
+  } catch (error) {
+    return {
+      id: customerId,
+      fullName: user?.name ?? "",
+      email: user?.email ?? "",
+      phone: "",
+      ecoPoints: 0,
+      role: user?.role ?? "client"
+    };
+  }
 }
 
 export async function submitCheckout(payload: CheckoutInput): Promise<CheckoutResult> {

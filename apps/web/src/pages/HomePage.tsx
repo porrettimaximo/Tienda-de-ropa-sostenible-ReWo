@@ -45,9 +45,12 @@ export function HomePage() {
             >
               Ver Colección
             </Link>
-            <button className="border border-white/20 bg-white/10 px-8 py-4 text-sm font-bold uppercase tracking-tight text-white backdrop-blur-md transition-all hover:bg-white hover:text-black active:scale-95 md:px-10 md:py-5">
+            <Link
+              className="border border-white/20 bg-white/10 px-8 py-4 text-sm font-bold uppercase tracking-tight text-white backdrop-blur-md transition-all hover:bg-white hover:text-black active:scale-95 md:px-10 md:py-5"
+              to="/manifesto"
+            >
               Nuestra Historia
-            </button>
+            </Link>
           </div>
         </div>
       </section>

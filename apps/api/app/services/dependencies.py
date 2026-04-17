@@ -1,4 +1,4 @@
-from app.repositories.hybrid_repository import HybridRepository
+from app.repositories.supabase_repository import SupabaseRepository
 from app.services.auth_service import AuthService
 from app.services.catalog_service import CatalogService
 from app.services.reporting_service import ReportingService
@@ -6,28 +6,28 @@ from app.services.promotions_service import PromotionsService
 from app.services.sales_service import SalesService
 from app.services.suppliers_service import SuppliersService
 
-repository = HybridRepository()
+repository = SupabaseRepository()
 
 
 def get_auth_service() -> AuthService:
-    return AuthService(repository.backend())
+    return AuthService(repository)
 
 
 def get_catalog_service() -> CatalogService:
-    return CatalogService(repository.backend())
+    return CatalogService(repository)
 
 
 def get_sales_service() -> SalesService:
-    return SalesService(repository.backend())
+    return SalesService(repository)
 
 
 def get_reporting_service() -> ReportingService:
-    return ReportingService(repository.backend())
+    return ReportingService(repository)
 
 
 def get_promotions_service() -> PromotionsService:
-    return PromotionsService(repository.backend())
+    return PromotionsService(repository)
 
 
 def get_suppliers_service() -> SuppliersService:
-    return SuppliersService(repository.backend())
+    return SuppliersService(repository)

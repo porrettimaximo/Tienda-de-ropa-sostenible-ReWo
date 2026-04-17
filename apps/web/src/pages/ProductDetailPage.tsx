@@ -109,7 +109,8 @@ export function ProductDetailPage() {
       color: selectedVariant.color,
       quantity: safeQuantity,
       unitPrice: selectedVariant.price,
-      priceLabel: selectedVariant.priceLabel
+      priceLabel: selectedVariant.priceLabel,
+      image: selectedVariant.image_url || product.image // Ensure cart uses variant image
     });
 
     setFeedback(`Agregaste ${safeQuantity} pieza(s) a tu bolsa.`);
@@ -125,7 +126,7 @@ export function ProductDetailPage() {
       <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="space-y-5">
           <div className="aspect-[4/5] overflow-hidden border border-outline-variant/30 bg-surface-container-low">
-            <img className="h-full w-full object-cover" src={product.image} alt={product.name} />
+            <img className="h-full w-full object-cover" src={selectedVariant?.image_url || product.image} alt={product.name} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">

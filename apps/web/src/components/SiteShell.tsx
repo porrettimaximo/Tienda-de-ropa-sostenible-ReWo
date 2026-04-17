@@ -43,6 +43,12 @@ export function SiteShell({ children }: SiteShellProps) {
             ECOWEAR
           </Link>
 
+          <div className="hidden md:flex items-center gap-10">
+            <Link className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-900 transition-colors" to="/collections">Colecciones</Link>
+            <Link className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-900 transition-colors" to="/manifesto">Manifiesto</Link>
+            <Link className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-900 transition-colors" to="/combos">Combos</Link>
+          </div>
+
           {!hideActions ? (
             <div className="flex items-center gap-6">
               <Link className="relative text-inverse-surface" to="/cart" aria-label="Bolsa">

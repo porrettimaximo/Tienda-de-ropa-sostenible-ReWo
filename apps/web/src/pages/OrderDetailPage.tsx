@@ -54,6 +54,61 @@ export function OrderDetailPage() {
 
         <article className="border border-outline-variant/30 p-8">
           <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
+            Detalles de entrega
+          </h2>
+          <div className="mt-5 grid gap-4 border-t border-outline-variant/20 pt-4 text-sm md:grid-cols-2">
+            <div>
+              <p className="font-bold uppercase tracking-[0.1em] text-on-surface-variant">
+                Metodo de envio
+              </p>
+              <p className="mt-1">
+                {order.shippingMethod === "retiro_sucursal"
+                  ? "Retiro por sucursal"
+                  : order.shippingMethod === "envio_domicilio"
+                  ? "Envio a domicilio"
+                  : order.shippingMethod || "No especificado"}
+              </p>
+            </div>
+
+            {order.shippingMethod === "envio_domicilio" && (
+              <div>
+                <p className="font-bold uppercase tracking-[0.1em] text-on-surface-variant">
+                  Direccion
+                </p>
+                <p className="mt-1">
+                  {order.shippingAddressLine1} {order.shippingAddressLine2}
+                  <br />
+                  {order.shippingCity}, {order.shippingProvince} {order.shippingPostalCode}
+                  <br />
+                  {order.shippingCountry}
+                </p>
+              </div>
+            )}
+
+            {order.shippingPhone && (
+              <div>
+                <p className="font-bold uppercase tracking-[0.1em] text-on-surface-variant">
+                  Telefono de contacto
+                </p>
+                <p className="mt-1">{order.shippingPhone}</p>
+              </div>
+            )}
+
+            {order.notes && (
+              <div className="md:col-span-2">
+                <p className="font-bold uppercase tracking-[0.1em] text-on-surface-variant">
+                  Notas de la orden
+                </p>
+                <p className="mt-1 whitespace-pre-wrap rounded bg-surface p-3 italic">
+                  {order.notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="border border-outline-variant/30 p-8">
+          <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
             Articulos
           </h2>
           <div className="mt-5 space-y-3 border-t border-outline-variant/20 pt-4">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import {
   createAdminSupplier,
+  deleteAdminSupplier,
   getAdminSuppliers,
   updateAdminSupplier,
   type Supplier
@@ -26,6 +27,7 @@ function parseMaterials(value: string) {
 export function AdminSuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -50,6 +52,18 @@ export function AdminSuppliersPage() {
   const selectedSupplier = useMemo(
     () => suppliers.find((item) => item.id === selectedId),
     [suppliers, selectedId]
+  );
+
+  // Filtrar proveedores por búsqueda
+  const filteredSuppliers = useMemo(
+    () =>
+      suppliers.filter(
+        (supplier) =>
+          supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          supplier.country?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (supplier.organicCertification?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+      ),
+    [suppliers, searchTerm]
   );
 
   useEffect(() => {
@@ -102,6 +116,20 @@ export function AdminSuppliersPage() {
     }
   }
 
+  async function handleDelete(supplierId: string) {
+    if (!confirm("¿Eliminar este proveedor? Esta acción no se puede deshacer.")) return;
+    try {
+      setError("");
+      setStatus("");
+      await deleteAdminSupplier(supplierId);
+      setSuppliers((current) => current.filter((item) => item.id !== supplierId));
+      setSelectedId("");
+      setStatus("Proveedor eliminado correctamente.");
+    } catch {
+      setError("No se pudo eliminar el proveedor.");
+    }
+  }
+
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
       <header className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -122,49 +150,73 @@ export function AdminSuppliersPage() {
       </header>
 
       <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="border border-outline-variant/30 bg-white">
-          <div className="flex items-end justify-between gap-4 border-b border-outline-variant/20 p-6">
-            <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">Lista</p>
-              <h2 className="mt-2 font-headline text-2xl font-black uppercase tracking-tighter">
-                Proveedores
-              </h2>
-            </div>
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-tertiary">
-              {suppliers.length} total
-            </span>
+        <section className="space-y-4">
+          <div className="border border-outline-variant/30 bg-white p-4">
+            <input
+              className="w-full border border-outline/30 px-4 py-3 text-sm"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="🔍 Buscar por nombre, país o certificación..."
+              type="text"
+              value={searchTerm}
+            />
           </div>
 
-          <div className="divide-y divide-outline-variant/20">
-            {suppliers.map((supplier) => (
-              <button
-                key={supplier.id}
-                className={`w-full px-6 py-5 text-left transition-colors hover:bg-[#f2f4f4] ${
-                  supplier.id === selectedId ? "bg-[#f2f4f4]" : ""
-                }`}
-                onClick={() => setSelectedId(supplier.id)}
-                type="button"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-tertiary">
-                      {supplier.country ?? "Sin pais"}
-                    </p>
-                    <p className="mt-2 font-headline text-xl font-black uppercase tracking-tighter">
-                      {supplier.name}
-                    </p>
-                    <p className="mt-2 text-sm text-on-surface-variant">
-                      {supplier.organicCertification ?? "Sin certificacion"}
-                    </p>
-                    <p className="mt-2 text-sm text-on-surface-variant">
-                      Materiales: {(supplier.materials ?? []).join(", ") || "Sin materiales"}
-                    </p>
+          <section className="border border-outline-variant/30 bg-white max-h-[600px] overflow-y-auto">
+            <div className="flex items-end justify-between gap-4 border-b border-outline-variant/20 p-6 sticky top-0 bg-white">
+              <div>
+                <p className="text-[0.65rem] uppercase tracking-[0.25em] text-on-surface-variant">Lista</p>
+                <h2 className="mt-2 font-headline text-2xl font-black uppercase tracking-tighter">
+                  Proveedores
+                </h2>
+              </div>
+              <span className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-tertiary">
+                {filteredSuppliers.length} total
+              </span>
+            </div>
+
+            <div className="divide-y divide-outline-variant/20">
+              {filteredSuppliers.map((supplier) => (
+                <button
+                  key={supplier.id}
+                  className={`w-full px-6 py-5 text-left transition-colors hover:bg-[#f2f4f4] ${
+                    supplier.id === selectedId ? "bg-[#f2f4f4]" : ""
+                  }`}
+                  onClick={() => setSelectedId(supplier.id)}
+                  type="button"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex-1">
+                      <p className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-tertiary">
+                        {supplier.country ?? "Sin pais"}
+                      </p>
+                      <p className="mt-2 font-headline text-xl font-black uppercase tracking-tighter">
+                        {supplier.name}
+                      </p>
+                      <p className="mt-2 text-sm text-on-surface-variant">
+                        {supplier.organicCertification ?? "Sin certificacion"}
+                      </p>
+                      <p className="mt-2 text-sm text-on-surface-variant">
+                        Materiales: {(supplier.materials ?? []).join(", ") || "Sin materiales"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 text-[0.65rem] font-black uppercase tracking-[0.2em]">
+                      <button
+                        className="underline underline-offset-4 hover:text-error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(supplier.id);
+                        }}
+                        type="button"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-on-surface-variant">{supplier.id}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
         </section>
 
         <aside className="space-y-6">

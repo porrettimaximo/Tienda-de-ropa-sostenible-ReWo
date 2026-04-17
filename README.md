@@ -1,5 +1,12 @@
 # 🌿 ReWo - Tienda de Ropa Sostenible
-
+.
+Para iniciar el backend (API):
+Shell Script
+npm run dev:api
+2.
+Para iniciar el frontend (Web):
+Shell Script
+npm run dev:web
 **E-commerce moderno para marcas sostenibles.** Catálogo, checkout, programa de lealtad, panel admin y reportes.
 
 > Status: 📊 MVP visual completo (100%) | Backend estructurado (40%) | Integración Supabase pendiente

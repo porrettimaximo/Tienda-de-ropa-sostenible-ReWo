@@ -5,18 +5,22 @@ import { accountSummary as fallbackAccountSummary } from "../data/store";
 import { getCustomerAccount, getCustomerOrders, type CustomerOrder } from "../lib/api";
 
 export function AccountPage() {
-  const [accountSummary, setAccountSummary] = useState(fallbackAccountSummary);
+  const [loading, setLoading] = useState(true);
+  const [accountSummary, setAccountSummary] = useState<any>(null);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
 
     getCustomerAccount().then((data) => {
       if (active) {
         setAccountSummary(data);
       }
+    }).finally(() => {
+      if (active) setLoading(false);
     });
 
     getCustomerOrders().then((data) => {
@@ -36,13 +40,23 @@ export function AccountPage() {
     .filter((order) => {
       if (filter === "all") return true;
       if (filter === "online") return order.channel === "online";
-      if (filter === "store") return order.channel === "in-store";
+      if (filter === "store") return order.channel === "store";
       return true;
     })
     .filter((order) => {
       if (searchTerm === "") return true;
       return order.id.toLowerCase().includes(searchTerm.toLowerCase());
     });
+
+  if (loading || !accountSummary) {
+    return (
+      <main className="px-5 py-12 md:px-8 lg:px-12 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <p className="text-[0.7rem] font-black uppercase tracking-[0.3em] text-tertiary">Cargando datos...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
@@ -110,11 +124,11 @@ export function AccountPage() {
               <input
                 type="text"
                 placeholder="Buscar por ID de pedido"
-                className="flex-grow border border-outline-variant/30 p-2"
+                className="flex-grow border border-outline-variant/30 px-4 py-2 text-sm"
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               <select
-                className="border border-outline-variant/30 p-2"
+                className="border border-outline-variant/30 px-4 py-2 text-sm"
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option value="all">Todos</option>
@@ -123,7 +137,7 @@ export function AccountPage() {
               </select>
             </div>
 
-            <div className="mt-8 space-y-5">
+            <div className="mt-8 space-y-5 max-h-[700px] overflow-y-auto pr-2">
               {filteredOrders.length === 0 ? (
                 <div className="border border-dashed border-outline/40 px-5 py-10 text-center">
                   <p className="text-sm text-on-surface-variant">
