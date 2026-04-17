@@ -102,7 +102,6 @@ export function ProductDetailPage() {
       productId: product.id,
       productSlug: product.slug,
       productName: product.name,
-      image: product.image,
       variantId: selectedVariant.id,
       sku: selectedVariant.sku,
       size: selectedVariant.size,
@@ -110,6 +109,7 @@ export function ProductDetailPage() {
       quantity: safeQuantity,
       unitPrice: selectedVariant.price,
       priceLabel: selectedVariant.priceLabel,
+      stock: selectedVariant.stock,
       image: selectedVariant.image_url || product.image // Ensure cart uses variant image
     });
 

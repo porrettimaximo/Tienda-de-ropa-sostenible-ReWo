@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 
@@ -33,7 +33,7 @@ def apply_combo_promotion(
     if discount_total <= 0:
         return None
 
-    return AppliedPromotion(label="Combo de temporada", discount_total=discount_total)
+    return AppliedPromotion(label="Combo", discount_total=discount_total)
 
 
 def apply_best_promotion(
@@ -48,25 +48,60 @@ def apply_best_promotion(
     - name
     - promotion_type: 'fixed' | 'percentage' | 'combo'
     - discount_value (float)
+    - min_subtotal (float)
+    - min_items (int)
+    - ends_at (datetime | None)
     """
 
     best: AppliedPromotion | None = None
+    now = datetime.now(timezone.utc)
 
     for promo in promotions:
+        # Check expiration
+        ends_at = getattr(promo, "ends_at", None)
+        if ends_at:
+            # Ensure ends_at is aware
+            if ends_at.tzinfo is None:
+                ends_at = ends_at.replace(tzinfo=timezone.utc)
+            if now > ends_at:
+                continue
+
+        # Check starts_at
+        starts_at = getattr(promo, "starts_at", None)
+        if starts_at:
+            if starts_at.tzinfo is None:
+                starts_at = starts_at.replace(tzinfo=timezone.utc)
+            if now < starts_at:
+                continue
+
         promo_type = getattr(promo, "promotion_type", None)
         discount_value = float(getattr(promo, "discount_value", 0) or 0)
         label = str(getattr(promo, "name", "Promocion"))
+        
+        # New fields
+        min_subtotal = float(getattr(promo, "min_subtotal", 0) or 0)
+        min_items = int(getattr(promo, "min_items", 1) or 1)
 
         candidate: AppliedPromotion | None = None
+        
+        # All promotions now check min_subtotal and min_items (variety of slugs)
+        if subtotal < min_subtotal:
+            continue
+        if len(set(product_slugs)) < min_items:
+            continue
+
         if promo_type == "fixed":
             candidate = AppliedPromotion(label=label, discount_total=min(discount_value, subtotal))
         elif promo_type == "percentage":
             candidate = AppliedPromotion(label=label, discount_total=min(subtotal, subtotal * (discount_value / 100.0)))
         elif promo_type == "combo":
+            # For combos, the 'discount_value' is the fixed amount to subtract
             candidate = apply_combo_promotion(
                 subtotal=subtotal,
                 product_slugs=product_slugs,
-                discount_amount=discount_value or 350,
+                min_subtotal=min_subtotal,
+                min_distinct_products=min_items,
+                discount_amount=discount_value,
             )
             if candidate is not None:
                 candidate = AppliedPromotion(label=label, discount_total=candidate.discount_total)

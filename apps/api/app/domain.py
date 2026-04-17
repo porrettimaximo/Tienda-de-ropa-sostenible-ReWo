@@ -70,6 +70,7 @@ class LoyaltyCustomer(BaseModel):
 
 
 class SalesByVariantReport(BaseModel):
+    product_name: str | None = None
     size: str
     color: str
     sales_channel: SalesChannel
@@ -147,7 +148,7 @@ class OrderSummary(BaseModel):
 
 
 class AdminOverview(BaseModel):
-    low_stock_variants: int = Field(ge=0)
+    total_products: int = Field(ge=0)
     active_promotions: int = Field(ge=0)
     ethical_suppliers: int = Field(ge=0)
     sales_total: float = Field(ge=0)
@@ -159,6 +160,8 @@ class Promotion(BaseModel):
     description: str | None = None
     promotion_type: PromotionType
     discount_value: float = Field(ge=0)
+    min_subtotal: float = Field(default=0, ge=0)
+    min_items: int = Field(default=1, ge=1)
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     is_active: bool = True

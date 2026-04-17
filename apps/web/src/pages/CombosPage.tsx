@@ -22,32 +22,41 @@ export function CombosPage() {
     };
   }, []);
 
-  const comboPromos = promotions.filter((promo) => promo.promotionType === "combo" && promo.isActive);
+  const activePromos = promotions.filter((promo) => promo.isActive);
+
+  const getPromoBadge = (type: string) => {
+    switch (type) {
+      case "percentage": return "Descuento Especial";
+      case "fixed": return "Oferta Directa";
+      case "combo": return "Combo Activo";
+      default: return "Promoción";
+    }
+  };
 
   return (
     <main className="px-5 py-16 md:px-8 lg:px-12">
       <header className="mx-auto mb-20 max-w-4xl text-center">
         <span className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-tertiary">
-          Curated Sets / Eco Combos
+          Promotions / Eco Benefits
         </span>
         <h1 className="mt-6 font-headline text-5xl font-black uppercase tracking-tighter text-inverse-surface md:text-8xl">
           Multiplica tu Impacto
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-lg font-light leading-relaxed text-on-surface-variant">
-          Diseñamos sets inteligentes para que tu armario sea más versátil y sostenible. 
+          Diseñamos beneficios inteligentes para que tu armario sea más versátil y sostenible. 
           Ahorra automáticamente al elegir las piezas correctas.
         </p>
       </header>
 
       <section className="mx-auto max-w-6xl space-y-12">
-        {comboPromos.length > 0 ? (
+        {activePromos.length > 0 ? (
           <div className="grid gap-10 md:grid-cols-2">
-            {comboPromos.map((promo) => (
+            {activePromos.map((promo) => (
               <article key={promo.id} className="group relative overflow-hidden border border-outline-variant/30 bg-white p-10 transition-all hover:border-inverse-surface/40">
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-secondary/5 transition-transform duration-700 group-hover:scale-150" />
                 
                 <span className="bg-secondary px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.25em] text-on-secondary">
-                  Combo Activo
+                  {getPromoBadge(promo.promotionType)}
                 </span>
                 
                 <h2 className="mt-8 font-headline text-4xl font-black uppercase tracking-tighter">
@@ -58,7 +67,20 @@ export function CombosPage() {
                   {promo.description}
                 </p>
 
-                <div className="mt-10 grid grid-cols-2 gap-4">
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {promo.minSubtotal > 0 && (
+                    <span className="border border-outline/20 px-3 py-1 text-[0.6rem] font-bold uppercase tracking-widest text-on-surface-variant">
+                      Min: ${promo.minSubtotal.toLocaleString()} MXN
+                    </span>
+                  )}
+                  {promo.minItems > 1 && (
+                    <span className="border border-outline/20 px-3 py-1 text-[0.6rem] font-bold uppercase tracking-widest text-on-surface-variant">
+                      {promo.minItems}+ Prendas
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-8 grid grid-cols-2 gap-4">
                   <div className="bg-[#f2f4f4] p-6 text-center">
                     <p className="text-[0.6rem] font-bold uppercase tracking-widest text-on-surface-variant">Beneficio</p>
                     <p className="mt-2 text-3xl font-black text-secondary">{promo.discountLabel}</p>
@@ -74,7 +96,7 @@ export function CombosPage() {
                     className="inline-block w-full bg-inverse-surface px-8 py-5 text-center text-[0.7rem] font-black uppercase tracking-[0.3em] text-surface transition-all hover:bg-neutral-800"
                     to="/collections"
                   >
-                    Armar mi combo
+                    Ver catálogo y aplicar
                   </Link>
                 </div>
               </article>
@@ -82,7 +104,7 @@ export function CombosPage() {
           </div>
         ) : (
           <div className="border border-dashed border-outline-variant/50 py-24 text-center">
-            <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">No hay combos activos en este momento</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">No hay promociones activas en este momento</p>
             <Link to="/collections" className="mt-6 inline-block text-sm underline underline-offset-8">Volver al catálogo general</Link>
           </div>
         )}

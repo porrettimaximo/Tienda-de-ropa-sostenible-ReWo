@@ -60,95 +60,107 @@ export function LoginPage({ defaultMode = "login" }: { defaultMode?: Mode }) {
   }
 
   return (
-    <main className="grid min-h-[calc(100vh-88px)] lg:grid-cols-2">
-      <section className="hidden bg-inverse-surface p-12 text-surface lg:flex lg:flex-col lg:justify-end">
-        <span className="text-[0.7rem] uppercase tracking-[0.3em] text-tertiary-fixed">Acceso</span>
-        <h1 className="mt-4 font-headline text-6xl font-black uppercase tracking-tighter">
-          Un solo login
-        </h1>
-        <p className="mt-8 max-w-lg text-base leading-relaxed text-surface-dim">
-          Usa este formulario para clientes y administracion. El rol se elige antes de ingresar.
-        </p>
-      </section>
+    <main className="relative flex min-h-[calc(100vh-88px)] items-center justify-center overflow-hidden">
+      {/* Cinematic Background */}
+      <img
+        className="absolute inset-0 h-full w-full object-cover"
+        alt="ReWo Sustainable Lifestyle"
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp-PUlsXJJLvX2gYfYadWEEsoJhDRuDHpAHh9qsbgCavHqAeDLi8TVRz4lWjuhZxeZYTyovSdQZIl89Ehg4O-prrLjvI9hzFWc3ifz3My4TiNoz4YoFxagha8_-X9GcjfWrbdN3IpfQ2r6Ox6K6J9EJoJntpXXt8HQJuwdgVlPEh5khe8IyDBoFN7_H5UKxk-5V7LE_Bid1AtGPZLrmkci6JPfdDO7OaoIUdTy-WjnVm9vuZBf7ZP4O0vHsZtKzCEAufakRlhsEQPK"
+      />
+      <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-[2px]" />
 
-      <section className="flex items-center justify-center px-5 py-12 md:px-8">
+      <section className="relative z-10 w-full max-w-2xl px-5 py-16">
         <form
-          className="w-full max-w-xl border border-outline-variant/30 bg-surface p-8 md:p-12"
+          className="border-none bg-white/95 p-8 shadow-2xl backdrop-blur-xl md:p-14"
           onSubmit={handleSubmit}
         >
-          <span className="text-[0.7rem] font-bold uppercase tracking-[0.3em] text-tertiary">
-            Acceso
-          </span>
-          <h2 className="mt-4 font-headline text-4xl font-black uppercase tracking-tighter">
-            Acceso ECOWEAR
-          </h2>
+          <div className="mb-10 text-center md:text-left">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.4em] text-tertiary">
+              Bienvenido
+            </span>
+            <h2 className="mt-4 font-headline text-5xl font-black uppercase tracking-tighter text-inverse-surface md:text-6xl">
+              {mode === "login" ? "Acceso ECOWEAR" : "Únete a ReWo"}
+            </h2>
+            <p className="mt-6 text-sm font-light leading-relaxed text-on-surface-variant max-w-sm">
+              {mode === "login"
+                ? "Ingresa para gestionar tu cuenta, ver tus pedidos y acumular puntos de lealtad."
+                : "Crea tu cuenta para formar parte de la revolución de la moda sostenible en México."}
+            </p>
+          </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden border border-outline/20 bg-outline/20">
             <button
-              className={`border px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.25em] ${
+              className={`px-4 py-4 text-[0.65rem] font-black uppercase tracking-[0.25em] transition-all ${
                 mode === "login"
-                  ? "border-inverse-surface bg-inverse-surface text-surface"
-                  : "border-outline/30 bg-white hover:border-inverse-surface"
+                  ? "bg-inverse-surface text-surface"
+                  : "bg-surface/50 text-on-surface hover:bg-surface/80"
               }`}
               onClick={() => setMode("login")}
               type="button"
             >
-              Ingresar
+              Login
             </button>
             <button
-              className={`border px-4 py-3 text-[0.7rem] font-black uppercase tracking-[0.25em] ${
+              className={`px-4 py-4 text-[0.65rem] font-black uppercase tracking-[0.25em] transition-all ${
                 mode === "register"
-                  ? "border-inverse-surface bg-inverse-surface text-surface"
-                  : "border-outline/30 bg-white hover:border-inverse-surface"
+                  ? "bg-inverse-surface text-surface"
+                  : "bg-surface/50 text-on-surface hover:bg-surface/80"
               }`}
               onClick={() => setMode("register")}
               type="button"
             >
-              Registrarme
+              Registro
             </button>
           </div>
 
-          <div className="mt-8 space-y-4">
+          <div className="mt-10 space-y-4">
             {mode === "register" ? (
               <>
                 <input
-                  className="w-full border border-outline/30 px-4 py-4 text-sm"
+                  className="w-full border border-outline/20 bg-surface/50 px-5 py-4 text-sm transition-focus focus:bg-white focus:outline-none focus:ring-1 focus:ring-inverse-surface"
                   onChange={(event) => setFullName(event.target.value)}
                   placeholder="Nombre completo"
                   value={fullName}
                 />
                 <input
-                  className="w-full border border-outline/30 px-4 py-4 text-sm"
+                  className="w-full border border-outline/20 bg-surface/50 px-5 py-4 text-sm transition-focus focus:bg-white focus:outline-none focus:ring-1 focus:ring-inverse-surface"
                   onChange={(event) => setPhone(event.target.value)}
-                  placeholder="Número de teléfono"
+                  placeholder="Número de teléfono (10 dígitos)"
                   value={phone}
                 />
               </>
             ) : null}
             <input
-              className="w-full border border-outline/30 px-4 py-4 text-sm"
+              className="w-full border border-outline/20 bg-surface/50 px-5 py-4 text-sm transition-focus focus:bg-white focus:outline-none focus:ring-1 focus:ring-inverse-surface"
               onChange={(event) => setIdentifier(event.target.value)}
-              placeholder="Email (o admin)"
+              placeholder="Email"
               value={identifier}
             />
             <input
-              className="w-full border border-outline/30 px-4 py-4 text-sm"
+              className="w-full border border-outline/20 bg-surface/50 px-5 py-4 text-sm transition-focus focus:bg-white focus:outline-none focus:ring-1 focus:ring-inverse-surface"
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Contrasena"
+              placeholder="Contraseña"
               type="password"
               value={password}
             />
           </div>
 
-          {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <div className="mt-6 bg-error/5 px-4 py-3 border-l-4 border-error">
+              <p className="text-xs font-bold uppercase tracking-widest text-error">{error}</p>
+            </div>
+          ) : null}
 
-          <div className="mt-8 flex flex-col gap-4">
+          <div className="mt-12">
             <button
-              className="bg-inverse-surface px-8 py-4 text-center text-[0.7rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary"
+              className="w-full bg-inverse-surface px-8 py-5 text-center text-[0.7rem] font-black uppercase tracking-[0.35em] text-surface transition-all hover:bg-secondary active:scale-[0.98]"
               type="submit"
             >
-              {mode === "register" ? "Crear cuenta" : "Ingresar"}
+              {mode === "register" ? "Crear cuenta ahora" : "Ingresar a mi cuenta"}
             </button>
+            <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant/60">
+              Seguridad encriptada ReWo
+            </p>
           </div>
         </form>
       </section>

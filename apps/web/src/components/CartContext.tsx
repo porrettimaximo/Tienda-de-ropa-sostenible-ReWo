@@ -18,11 +18,10 @@ type CartItem = {
   quantity: number;
   unitPrice: number;
   priceLabel: string;
+  stock: number;
 };
 
-type AddCartItemInput = Omit<CartItem, "quantity"> & {
-  quantity?: number;
-};
+type AddCartItemInput = CartItem;
 
 type CartContextValue = {
   items: CartItem[];
@@ -71,25 +70,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     subtotal,
     addItem: (item) => {
       setItems((currentItems) => {
-        const quantity = item.quantity ?? 1;
         const existingItem = currentItems.find((entry) => entry.variantId === item.variantId);
-
         if (existingItem) {
-          return currentItems.map((entry) =>
-            entry.variantId === item.variantId
-              ? { ...entry, quantity: entry.quantity + quantity }
-              : entry
-          );
+          return currentItems.map((entry) => {
+            if (entry.variantId === item.variantId) {
+              const newQuantity = Math.min(entry.quantity + item.quantity, entry.stock);
+              return { ...entry, quantity: newQuantity };
+            }
+            return entry;
+          });
         }
 
-        return [...currentItems, { ...item, quantity }];
+        return [...currentItems, { ...item, quantity: Math.min(item.quantity, item.stock) }];
       });
     },
     updateQuantity: (variantId, quantity) => {
       setItems((currentItems) =>
         currentItems
           .map((item) =>
-            item.variantId === variantId ? { ...item, quantity: Math.max(1, quantity) } : item
+            item.variantId === variantId 
+              ? { ...item, quantity: Math.min(Math.max(1, quantity), item.stock) } 
+              : item
           )
           .filter((item) => item.quantity > 0)
       );

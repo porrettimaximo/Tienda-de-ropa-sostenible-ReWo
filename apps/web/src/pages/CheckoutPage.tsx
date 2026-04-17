@@ -34,9 +34,6 @@ export function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("Tarjeta");
   const [notes, setNotes] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
-  const [invoiceRequired, setInvoiceRequired] = useState(false);
-  const [invoiceRfc, setInvoiceRfc] = useState("");
-  const [invoiceBusinessName, setInvoiceBusinessName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<{
@@ -127,8 +124,25 @@ export function CheckoutPage() {
     }
   };
 
+  const validateForm = () => {
+    if (!customerEmail.includes("@")) {
+      setError("Por favor ingresa un correo electrónico válido.");
+      return false;
+    }
+    if (!customerFirstName || !customerLastName) {
+      setError("Por favor completa tu nombre y apellido.");
+      return false;
+    }
+    if (shippingMethod === "envio_domicilio" && !shippingAddressLine1) {
+      setError("Por favor completa la dirección de envío.");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) return;
+    if (!validateForm()) return;
 
     try {
       setSubmitting(true);
@@ -144,9 +158,6 @@ export function CheckoutPage() {
         paymentMethod,
         notes,
         redeemPoints: isLoggedIn && effectiveRedeemPoints > 0 ? effectiveRedeemPoints : undefined,
-        invoiceRequired,
-        invoiceRfc: invoiceRequired ? invoiceRfc : undefined,
-        invoiceBusinessName: invoiceRequired ? invoiceBusinessName : undefined,
         shippingMethod,
         shippingAddressLine1: shippingAddressLine1 || undefined,
         shippingAddressLine2: shippingAddressLine2 || undefined,
@@ -262,7 +273,9 @@ export function CheckoutPage() {
                   ) : null}
                 </label>
                 <input
-                  className="mt-3 w-full border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
+                    !customerEmail && error.includes("datos") ? "border-error" : "border-outline/30"
+                  }`}
                   onChange={(event) => setCustomerEmail(event.target.value)}
                   placeholder="jorgegonzalez@email.com"
                   type="email"
@@ -275,7 +288,9 @@ export function CheckoutPage() {
                   Nombre
                 </label>
                 <input
-                  className="mt-3 w-full border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
+                    !customerFirstName && error.includes("nombre") ? "border-error" : "border-outline/30"
+                  }`}
                   onChange={(event) => setCustomerFirstName(event.target.value)}
                   placeholder="Jorge"
                   value={customerFirstName}
@@ -286,7 +301,9 @@ export function CheckoutPage() {
                   Apellido
                 </label>
                 <input
-                  className="mt-3 w-full border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
+                  className={`mt-3 w-full border bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface ${
+                    !customerLastName && error.includes("nombre") ? "border-error" : "border-outline/30"
+                  }`}
                   onChange={(event) => setCustomerLastName(event.target.value)}
                   placeholder="Gonzalez"
                   value={customerLastName}
@@ -497,32 +514,6 @@ export function CheckoutPage() {
 
 
 
-              <label className="flex items-center gap-3 text-sm">
-                <input
-                  checked={invoiceRequired}
-                  className="h-4 w-4 rounded-none border-outline checked:bg-inverse-surface"
-                  onChange={(event) => setInvoiceRequired(event.target.checked)}
-                  type="checkbox"
-                />
-                Requiere factura
-              </label>
-
-              {invoiceRequired ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <input
-                    className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
-                    onChange={(event) => setInvoiceRfc(event.target.value)}
-                    placeholder="RFC"
-                    value={invoiceRfc}
-                  />
-                  <input
-                    className="border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
-                    onChange={(event) => setInvoiceBusinessName(event.target.value)}
-                    placeholder="Razon social"
-                    value={invoiceBusinessName}
-                  />
-                </div>
-              ) : null}
 
               <textarea
                 className="min-h-[140px] border border-outline/30 bg-surface px-4 py-4 text-sm outline-none focus:border-inverse-surface"
@@ -604,7 +595,15 @@ export function CheckoutPage() {
           >
             Volver a bolsa
           </Link>
-          {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <div className="mt-4 border border-error bg-error/5 p-4 animate-shake">
+              <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-error flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                Atencion
+              </p>
+              <p className="mt-1 text-xs text-error/80">{error}</p>
+            </div>
+          ) : null}
         </aside>
       </div>
 

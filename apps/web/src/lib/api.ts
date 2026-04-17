@@ -100,7 +100,7 @@ type ApiOrderSummary = {
 
 type ApiOverview = {
   overview: {
-    low_stock_variants: number;
+    total_products: number;
     active_promotions: number;
     ethical_suppliers: number;
     sales_total: number;
@@ -108,6 +108,7 @@ type ApiOverview = {
 };
 
 type ApiSalesReportRow = {
+  product_name?: string | null;
   size: string;
   color: string;
   sales_channel: "online" | "store";
@@ -262,6 +263,7 @@ export type CheckoutResult = ApiCheckoutResponse["order"];
 export type AdminProduct = CatalogProduct;
 
 export type SalesReportRow = {
+  productName?: string;
   size: string;
   color: string;
   channel: "online" | "store";
@@ -289,8 +291,12 @@ export type Promotion = {
   description?: string | null;
   promotionType: "percentage" | "fixed" | "combo";
   discountValue: number;
+  minSubtotal: number;
+  minItems: number;
   isActive: boolean;
   discountLabel: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
 };
 
 export type Supplier = {
@@ -708,7 +714,7 @@ export async function getAdminSummary() {
   try {
     const response = await requestJson<ApiOverview>("/reports/overview");
     return {
-      lowStockVariants: response.overview.low_stock_variants,
+      totalProducts: response.overview.total_products,
       activePromotions: response.overview.active_promotions,
       ethicalSuppliers: response.overview.ethical_suppliers,
       salesToday: formatCurrency(response.overview.sales_total)
@@ -722,6 +728,7 @@ export async function getSalesReport(): Promise<SalesReportRow[]> {
   try {
     const response = await requestJson<ApiSalesReportRow[]>("/reports/sales-by-size-color");
     return response.map((row) => ({
+      productName: row.product_name ?? undefined,
       size: row.size,
       color: row.color,
       channel: row.sales_channel,
@@ -732,6 +739,7 @@ export async function getSalesReport(): Promise<SalesReportRow[]> {
   } catch {
     return [
       {
+        productName: "Playera Eco",
         size: "M",
         color: "Musgo",
         channel: "online",
@@ -740,6 +748,7 @@ export async function getSalesReport(): Promise<SalesReportRow[]> {
         revenueLabel: formatCurrency(41400)
       },
       {
+        productName: "Pantalón Hemp",
         size: "L",
         color: "Arena",
         channel: "store",
@@ -773,7 +782,7 @@ export async function getSalesKpis(params?: {
     const response = await requestJson<ApiSalesKpis>(`/reports/kpis${suffix}`);
     return {
       totalOrders: response.total_orders,
-      ticketAverageLabel: formatCurrency(response.ticket_average),
+      ticketAverageLabel: formatCurrency(Math.round(response.ticket_average)),
       unitsSold: response.units_sold,
       totalRevenueLabel: formatCurrency(response.total_revenue),
       topProducts: response.top_products.map((item) => ({
@@ -803,7 +812,11 @@ export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
         description?: string | null;
         promotion_type: "percentage" | "fixed" | "combo";
         discount_value: number;
+        min_subtotal: number;
+        min_items: number;
         is_active: boolean;
+        starts_at?: string | null;
+        ends_at?: string | null;
       }>
     >(`/promotions?active_only=${String(activeOnly)}`);
 
@@ -813,7 +826,11 @@ export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
       description: promo.description,
       promotionType: promo.promotion_type,
       discountValue: promo.discount_value,
+      minSubtotal: promo.min_subtotal || 0,
+      minItems: promo.min_items || 1,
       isActive: promo.is_active,
+      startsAt: promo.starts_at,
+      endsAt: promo.ends_at,
       discountLabel:
         promo.promotion_type === "percentage"
           ? `${promo.discount_value}%`
@@ -827,6 +844,8 @@ export async function getPromotions(activeOnly = true): Promise<Promotion[]> {
         description: "-$350 MXN en compras desde $5,000 con 2 productos distintos.",
         promotionType: "combo",
         discountValue: 350,
+        minSubtotal: 5000,
+        minItems: 2,
         isActive: true,
         discountLabel: "$350 MXN"
       }
@@ -849,31 +868,31 @@ export function calculateBestPromotion(
 ): { discountAmount: number; appliedPromotion: Promotion | null } {
   let bestDiscount = 0;
   let appliedPromotion: Promotion | null = null;
+  const now = new Date();
 
   for (const promo of promotions) {
-    let discount = 0;
+    // Check dates if present
+    if (promo.startsAt && new Date(promo.startsAt) > now) continue;
+    if (promo.endsAt && new Date(promo.endsAt) < now) continue;
 
+    // Check shared conditions: min subtotal and min distinct products
+    const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
+    if (subtotal < (promo.minSubtotal || 0)) continue;
+    if (distinctProducts < (promo.minItems || 1)) continue;
+
+    let discount = 0;
     switch (promo.promotionType) {
       case "fixed":
-        // Descuento fijo simple
         discount = promo.discountValue;
         break;
-
       case "percentage":
-        // Descuento porcentual
         discount = subtotal * (promo.discountValue / 100);
         break;
-
       case "combo":
-        // Descuento combo: requiere subtotal >= 5000 y 2+ productos distintos
-        const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
-        if (subtotal >= 5000 && distinctProducts >= 2) {
-          discount = promo.discountValue;
-        }
+        discount = promo.discountValue;
         break;
     }
 
-    // Usar la promoción que da mayor descuento
     if (discount > bestDiscount) {
       bestDiscount = discount;
       appliedPromotion = promo;
@@ -895,7 +914,11 @@ export async function getAdminPromotions(): Promise<Promotion[]> {
         description?: string | null;
         promotion_type: "percentage" | "fixed" | "combo";
         discount_value: number;
+        min_subtotal: number;
+        min_items: number;
         is_active: boolean;
+        starts_at?: string | null;
+        ends_at?: string | null;
       }>
     >("/admin/promotions?active_only=false");
 
@@ -905,7 +928,11 @@ export async function getAdminPromotions(): Promise<Promotion[]> {
       description: promo.description,
       promotionType: promo.promotion_type,
       discountValue: promo.discount_value,
+      minSubtotal: promo.min_subtotal || 0,
+      minItems: promo.min_items || 1,
       isActive: promo.is_active,
+      startsAt: promo.starts_at,
+      endsAt: promo.ends_at,
       discountLabel:
         promo.promotion_type === "percentage"
           ? `${promo.discount_value}%`
@@ -1018,7 +1045,11 @@ export async function createAdminPromotion(payload: {
   description?: string;
   promotionType: "percentage" | "fixed" | "combo";
   discountValue: number;
+  minSubtotal?: number;
+  minItems?: number;
   isActive: boolean;
+  startsAt?: string;
+  endsAt?: string;
 }): Promise<Promotion> {
   const response = await requestJson<{
     promotion: {
@@ -1027,7 +1058,11 @@ export async function createAdminPromotion(payload: {
       description?: string | null;
       promotion_type: "percentage" | "fixed" | "combo";
       discount_value: number;
+      min_subtotal: number;
+      min_items: number;
       is_active: boolean;
+      starts_at?: string | null;
+      ends_at?: string | null;
     };
   }>("/admin/promotions", {
     method: "POST",
@@ -1037,7 +1072,11 @@ export async function createAdminPromotion(payload: {
       description: payload.description ?? null,
       promotion_type: payload.promotionType,
       discount_value: payload.discountValue,
-      is_active: payload.isActive
+      min_subtotal: payload.minSubtotal ?? 0,
+      min_items: payload.minItems ?? 1,
+      is_active: payload.isActive,
+      starts_at: payload.startsAt || null,
+      ends_at: payload.endsAt || null
     })
   });
 
@@ -1048,7 +1087,11 @@ export async function createAdminPromotion(payload: {
     description: promo.description,
     promotionType: promo.promotion_type,
     discountValue: promo.discount_value,
+    minSubtotal: promo.min_subtotal,
+    minItems: promo.min_items,
     isActive: promo.is_active,
+    startsAt: promo.starts_at,
+    endsAt: promo.ends_at,
     discountLabel:
       promo.promotion_type === "percentage"
         ? `${promo.discount_value}%`
@@ -1063,7 +1106,11 @@ export async function updateAdminPromotion(
     description?: string;
     promotionType: "percentage" | "fixed" | "combo";
     discountValue: number;
+    minSubtotal?: number;
+    minItems?: number;
     isActive: boolean;
+    startsAt?: string;
+    endsAt?: string;
   }
 ): Promise<Promotion> {
   const response = await requestJson<{
@@ -1073,7 +1120,11 @@ export async function updateAdminPromotion(
       description?: string | null;
       promotion_type: "percentage" | "fixed" | "combo";
       discount_value: number;
+      min_subtotal: number;
+      min_items: number;
       is_active: boolean;
+      starts_at?: string | null;
+      ends_at?: string | null;
     };
   }>(`/admin/promotions/${promotionId}`, {
     method: "PUT",
@@ -1083,7 +1134,11 @@ export async function updateAdminPromotion(
       description: payload.description ?? null,
       promotion_type: payload.promotionType,
       discount_value: payload.discountValue,
-      is_active: payload.isActive
+      min_subtotal: payload.minSubtotal ?? 0,
+      min_items: payload.minItems ?? 1,
+      is_active: payload.isActive,
+      starts_at: payload.startsAt || null,
+      ends_at: payload.endsAt || null
     })
   });
 
@@ -1094,7 +1149,11 @@ export async function updateAdminPromotion(
     description: promo.description,
     promotionType: promo.promotion_type,
     discountValue: promo.discount_value,
+    minSubtotal: promo.min_subtotal,
+    minItems: promo.min_items,
     isActive: promo.is_active,
+    startsAt: promo.starts_at,
+    endsAt: promo.ends_at,
     discountLabel:
       promo.promotion_type === "percentage"
         ? `${promo.discount_value}%`
@@ -1113,7 +1172,11 @@ export async function setAdminPromotionActive(
       description?: string | null;
       promotion_type: "percentage" | "fixed" | "combo";
       discount_value: number;
+      min_subtotal: number;
+      min_items: number;
       is_active: boolean;
+      starts_at?: string | null;
+      ends_at?: string | null;
     };
   }>(`/admin/promotions/${promotionId}/active?is_active=${String(isActive)}`, {
     method: "PUT"
@@ -1126,7 +1189,11 @@ export async function setAdminPromotionActive(
     description: promo.description,
     promotionType: promo.promotion_type,
     discountValue: promo.discount_value,
+    minSubtotal: promo.min_subtotal,
+    minItems: promo.min_items,
     isActive: promo.is_active,
+    startsAt: promo.starts_at,
+    endsAt: promo.ends_at,
     discountLabel:
       promo.promotion_type === "percentage"
         ? `${promo.discount_value}%`

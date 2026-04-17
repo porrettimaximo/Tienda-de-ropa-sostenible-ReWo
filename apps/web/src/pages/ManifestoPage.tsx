@@ -2,25 +2,25 @@ import { Link } from "react-router-dom";
 
 export function ManifestoPage() {
   return (
-    <main className="pt-24">
+    <main>
       {/* Hero Section */}
-      <section className="relative h-[70vh] w-full flex items-center overflow-hidden bg-surface-container-low">
-        <div className="absolute inset-0 z-0">
-          <img
-            className="w-full h-full object-cover grayscale opacity-80"
-            alt="Cinematic shot of a minimalist agave field in Oaxaca at sunrise"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB7iEjgb_odwIuAM3_w6QD3kDnCyGKerVf5RCxltuWMIqyQ61YYaPZac1EFAOMz-rrW7lEtJ09mB1cEMD32_bOKYL3EvsXqRQqMJYMSb9wtbA6uQW-Axifsc1PGZeIUW5Xl-3zKdnm9fNVVgSR2e5c0HYHAjEDM-ZX9k1r2mu_ifmLlP_0FpxpsUNUpqYa1O5fWr5wMjhz-9z2tEH6DgUW99JOW-9_ZBpMI_02G8vak6VjtsmqnjfDapztHewxWLWj2z3f6Sd9Xx58"
-          />
-        </div>
-        <div className="relative z-10 px-8 max-w-screen-2xl mx-auto w-full text-center md:text-left">
-          <div className="max-w-3xl">
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-inverse-surface leading-[0.9] mb-8 uppercase">
-              Nuestra Razón de Ser
-            </h1>
-            <p className="text-xl md:text-2xl font-light leading-relaxed max-w-xl text-on-surface-variant">
-              En la intersección entre la herencia ancestral y la arquitectura moderna, EcoWear redefine la permanencia de lo esencial.
-            </p>
-          </div>
+      <section className="relative flex min-h-[720px] items-end overflow-hidden md:h-[921px]">
+        <img
+          className="absolute inset-0 h-full w-full object-cover"
+          alt="Nuestra razón de ser"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB7iEjgb_odwIuAM3_w6QD3kDnCyGKerVf5RCxltuWMIqyQ61YYaPZac1EFAOMz-rrW7lEtJ09mB1cEMD32_bOKYL3EvsXqRQqMJYMSb9wtbA6uQW-Axifsc1PGZeIUW5Xl-3zKdnm9fNVVgSR2e5c0HYHAjEDM-ZX9k1r2mu_ifmLlP_0FpxpsUNUpqYa1O5fWr5wMjhz-9z2tEH6DgUW99JOW-9_ZBpMI_02G8vak6VjtsmqnjfDapztHewxWLWj2z3f6Sd9Xx58"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 to-transparent" />
+        <div className="relative z-10 max-w-4xl px-5 pb-16 md:px-12 md:pb-24">
+          <span className="mb-6 inline-block bg-secondary-container px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-on-secondary-container">
+            El Manifiesto
+          </span>
+          <h1 className="font-headline text-5xl font-black leading-none tracking-tighter text-white md:text-8xl xl:text-9xl mb-8 uppercase">
+            Nuestra Razón de Ser
+          </h1>
+          <p className="text-xl md:text-2xl font-light leading-relaxed max-w-xl text-white">
+            En la intersección entre la herencia ancestral y la arquitectura moderna, EcoWear redefine la permanencia de lo esencial.
+          </p>
         </div>
       </section>
 

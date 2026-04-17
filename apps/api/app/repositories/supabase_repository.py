@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException
+from postgrest.exceptions import APIError
 
 from app.domain import (
     AdminOverview,
@@ -567,24 +568,30 @@ class SupabaseRepository:
             except Exception:
                 # If creating fails, proceed without customer
                 pass
-
         items: list[OrderItem] = []
         subtotal = 0.0
         product_slugs: list[str] = []
 
+        # Phase 1: Preparation and validation
+        rpc_items = []
         for requested_item in payload.items:
             product = self.get_product(requested_item.product_slug)
             variant = next((item for item in product.variants if item.id == requested_item.variant_id), None)
             if variant is None:
-                raise HTTPException(status_code=404, detail="Variante no encontrada")
-            if variant.stock < requested_item.quantity:
-                raise HTTPException(status_code=400, detail="Stock insuficiente")
-
-            new_stock = variant.stock - requested_item.quantity
-            client.table("product_variants").update({"stock": new_stock}).eq("id", variant.id).execute()
+                raise HTTPException(status_code=404, detail=f"Variante {requested_item.variant_id} no encontrada")
+            
             line_total = variant.price * requested_item.quantity
             subtotal += line_total
             product_slugs.append(product.slug)
+            
+            rpc_items.append({
+                "product_id": product.id,
+                "variant_id": variant.id,
+                "quantity": requested_item.quantity,
+                "unit_price": variant.price,
+                "line_total": line_total
+            })
+            
             items.append(
                 OrderItem(
                     product_id=product.id,
@@ -664,18 +671,21 @@ class SupabaseRepository:
             }
         ).execute()
 
-        for item in items:
-            client.table("order_items").insert(
-                {
-                    "id": str(uuid4()),
-                    "order_id": order_id,
-                    "product_id": item.product_id,
-                    "variant_id": item.variant_id,
-                    "quantity": item.quantity,
-                    "unit_price": item.unit_price,
-                    "total_price": item.line_total,
-                }
-            ).execute()
+        # Atomic Phase: Decrement stock and insert items using RPC
+        try:
+            client.rpc("process_order_items", {
+                "p_order_id": order_id,
+                "p_items": rpc_items
+            }).execute()
+        except Exception as e:
+            # If stock fails, we should ideally mark order as failed or delete it
+            # For this demo, we'll delete it to keep it clean
+            client.table("orders").delete().eq("id", order_id).execute()
+            
+            error_msg = str(e)
+            if "Stock insuficiente" in error_msg:
+                 raise HTTPException(status_code=400, detail="Stock insuficiente en uno o más productos. La bolsa se ha actualizado.")
+            raise HTTPException(status_code=400, detail=f"Error al procesar inventario: {error_msg}")
 
         if customer is not None:
             self._ensure_loyalty_bootstrap(customer_id=customer.id, current_points=customer.loyalty_points)
@@ -742,18 +752,7 @@ class SupabaseRepository:
         )
 
     def get_sales_report(self) -> list[SalesByVariantReport]:
-        client = self._client()
-        rows = client.table("sales_by_size_color").select("*").execute().data or []
-        return [
-            SalesByVariantReport(
-                size=row["size"],
-                color=row["color"],
-                sales_channel=row["sales_channel"],
-                total_units=row["total_units"],
-                total_revenue=float(row["total_revenue"]),
-            )
-            for row in rows
-        ]
+        return self.get_sales_report_filtered()
 
     def get_sales_report_filtered(
         self,
@@ -783,42 +782,47 @@ class SupabaseRepository:
             return []
 
         variant_ids = sorted({row["variant_id"] for row in items_rows})
-        variants_rows = client.table("product_variants").select("id,size,color").in_("id", variant_ids).execute().data or []
-        variant_map = {row["id"]: (row["size"], row["color"]) for row in variants_rows}
+        variants_rows = client.table("product_variants").select("id,size,color,product_id").in_("id", variant_ids).execute().data or []
+        
+        product_ids = sorted({row["product_id"] for row in variants_rows if row.get("product_id")})
+        products_rows = client.table("products").select("id,name").in_("id", product_ids).execute().data or [] if product_ids else []
+        product_map = {row["id"]: row["name"] for row in products_rows}
 
-        totals: dict[tuple[str, str, str], tuple[int, float]] = {}
+        variant_map = {row["id"]: (row["size"], row["color"], product_map.get(row["product_id"], "Producto Desconocido")) for row in variants_rows}
+
+        totals: dict[tuple[str, str, str, str], tuple[int, float]] = {}
         for row in items_rows:
             variant_id = row["variant_id"]
-            size_color = variant_map.get(variant_id)
-            if not size_color:
+            variant_info = variant_map.get(variant_id)
+            if not variant_info:
                 continue
-            size, color = size_color
+            size, color, product_name = variant_info
             channel = order_channel.get(row["order_id"])
             if not channel:
                 continue
             qty = int(row.get("quantity") or 0)
             revenue = float(row.get("total_price") or 0)
-            key = (size, color, channel)
+            key = (size, color, channel, product_name)
             units, total_rev = totals.get(key, (0, 0.0))
             totals[key] = (units + qty, total_rev + revenue)
 
         return [
             SalesByVariantReport(
+                product_name=product_name,
                 size=size,
                 color=color,
                 sales_channel=channel,  # type: ignore[arg-type]
                 total_units=units,
                 total_revenue=revenue,
             )
-            for (size, color, channel), (units, revenue) in totals.items()
+            for (size, color, channel, product_name), (units, revenue) in totals.items()
         ]
 
     def get_admin_overview(self) -> AdminOverview:
         products = self.list_product_details()
-        low_stock_variants = sum(1 for product in products for variant in product.variants if variant.stock <= 3)
         sales_total = sum(item.total_revenue for item in self.get_sales_report())
         return AdminOverview(
-            low_stock_variants=low_stock_variants,
+            total_products=len(products),
             active_promotions=len(self.list_promotions(active_only=True)),
             ethical_suppliers=len(self.list_suppliers()),
             sales_total=sales_total,
@@ -905,6 +909,8 @@ class SupabaseRepository:
                 description=row.get("description"),
                 promotion_type=row["promotion_type"],
                 discount_value=float(row.get("discount_value") or 0),
+                min_subtotal=float(row.get("min_subtotal") or 0),
+                min_items=int(row.get("min_items") or 1),
                 starts_at=self._parse_ts(row.get("starts_at")),
                 ends_at=self._parse_ts(row.get("ends_at")),
                 is_active=row.get("is_active", True),
@@ -935,6 +941,8 @@ class SupabaseRepository:
                     "description": payload.description,
                     "promotion_type": payload.promotion_type,
                     "discount_value": payload.discount_value,
+                    "min_subtotal": payload.min_subtotal,
+                    "min_items": payload.min_items,
                     "starts_at": payload.starts_at.isoformat() if payload.starts_at else None,
                     "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
                     "is_active": payload.is_active,
@@ -953,6 +961,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            min_subtotal=float(row.get("min_subtotal") or 0),
+            min_items=int(row.get("min_items") or 1),
             starts_at=self._parse_ts(row.get("starts_at")),
             ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
@@ -966,6 +976,8 @@ class SupabaseRepository:
                 "description": payload.description,
                 "promotion_type": payload.promotion_type,
                 "discount_value": payload.discount_value,
+                "min_subtotal": payload.min_subtotal,
+                "min_items": payload.min_items,
                 "starts_at": payload.starts_at.isoformat() if payload.starts_at else None,
                 "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
                 "is_active": payload.is_active,
@@ -981,6 +993,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            min_subtotal=float(row.get("min_subtotal") or 0),
+            min_items=int(row.get("min_items") or 1),
             starts_at=self._parse_ts(row.get("starts_at")),
             ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
@@ -999,6 +1013,8 @@ class SupabaseRepository:
             description=row.get("description"),
             promotion_type=row["promotion_type"],
             discount_value=float(row.get("discount_value") or 0),
+            min_subtotal=float(row.get("min_subtotal") or 0),
+            min_items=int(row.get("min_items") or 1),
             starts_at=self._parse_ts(row.get("starts_at")),
             ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
@@ -1185,7 +1201,19 @@ class SupabaseRepository:
     def delete_product(self, product_slug: str) -> None:
         """Delete a product by slug"""
         client = self._client()
-        client.table("products").delete().eq("slug", product_slug).execute()
+        try:
+            # Try hard delete first
+            client.table("products").delete().eq("slug", product_slug).execute()
+        except APIError as e:
+            # Check if it's a foreign key constraint violation (code 23503)
+            # This happens when a product has been ordered and is referenced in order_items
+            if e.code == "23503":
+                # Soft delete instead: mark as inactive
+                client.table("products").update({"is_active": False}).eq("slug", product_slug).execute()
+            else:
+                raise e
+        except Exception as e:
+            raise e
 
     def update_product_image(self, product_slug: str, image_url: str) -> ProductDetail:
         """Update product image URL"""

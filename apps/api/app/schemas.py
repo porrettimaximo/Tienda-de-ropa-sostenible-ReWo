@@ -116,6 +116,8 @@ class PromotionUpsertRequest(BaseModel):
     description: str | None = None
     promotion_type: PromotionType
     discount_value: float = Field(ge=0)
+    min_subtotal: float = Field(default=0, ge=0)
+    min_items: int = Field(default=1, ge=1)
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     is_active: bool = True

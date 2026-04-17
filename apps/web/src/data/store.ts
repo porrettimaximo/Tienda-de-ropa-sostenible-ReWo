@@ -135,7 +135,7 @@ export const accountSummary = {
 };
 
 export const adminSummary = {
-  lowStockVariants: 4,
+  totalProducts: 7,
   activePromotions: 3,
   ethicalSuppliers: 12,
   salesToday: "$18,540 MXN"

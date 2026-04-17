@@ -17,7 +17,11 @@ const initialForm = {
   description: "",
   promotionType: "combo" as PromotionType,
   discountValue: 350,
-  isActive: true
+  minSubtotal: 0,
+  minItems: 1,
+  isActive: true,
+  startsAt: "",
+  endsAt: ""
 };
 
 export function AdminPromotionsPage() {
@@ -27,7 +31,11 @@ export function AdminPromotionsPage() {
     description: string;
     promotionType: PromotionType;
     discountValue: number;
+    minSubtotal: number;
+    minItems: number;
     isActive: boolean;
+    startsAt: string;
+    endsAt: string;
   }>(initialForm);
   const [selectedId, setSelectedId] = useState<string>("");
   const [status, setStatus] = useState("");
@@ -53,11 +61,15 @@ export function AdminPromotionsPage() {
   useEffect(() => {
     if (!selectedPromotion) return;
     setForm({
-      name: selectedPromotion.name,
-      description: selectedPromotion.description ?? "",
-      promotionType: selectedPromotion.promotionType,
-      discountValue: selectedPromotion.discountValue,
-      isActive: selectedPromotion.isActive
+      name: selectedPromotion.name || "",
+      description: selectedPromotion.description || "",
+      promotionType: selectedPromotion.promotionType || "combo",
+      discountValue: selectedPromotion.discountValue || 0,
+      minSubtotal: selectedPromotion.minSubtotal || 0,
+      minItems: selectedPromotion.minItems || 1,
+      isActive: selectedPromotion.isActive ?? true,
+      startsAt: selectedPromotion.startsAt ? selectedPromotion.startsAt.split('T')[0] : "",
+      endsAt: selectedPromotion.endsAt ? selectedPromotion.endsAt.split('T')[0] : ""
     });
   }, [selectedPromotion]);
 
@@ -161,13 +173,19 @@ export function AdminPromotionsPage() {
 
           <div className="divide-y divide-outline-variant/20">
             {promotions.map((promo) => (
-              <button
+              <div
                 key={promo.id}
-                className={`w-full px-6 py-5 text-left transition-colors ${
+                className={`w-full px-6 py-5 text-left transition-colors cursor-pointer ${
                   promo.id === selectedId ? "bg-[#f2f4f4]" : "hover:bg-[#f8f9f9]"
                 }`}
                 onClick={() => setSelectedId(promo.id)}
-                type="button"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedId(promo.id);
+                  }
+                }}
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
@@ -180,6 +198,28 @@ export function AdminPromotionsPage() {
                     <p className="mt-2 text-sm text-on-surface-variant">
                       {promo.description ?? "Sin descripcion"}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {promo.minSubtotal > 0 && (
+                        <span className="bg-surface border border-outline/20 px-2 py-1 text-[0.6rem] font-bold uppercase tracking-wider">
+                          Min: ${promo.minSubtotal.toLocaleString()}
+                        </span>
+                      )}
+                      {promo.minItems > 1 && (
+                        <span className="bg-surface border border-outline/20 px-2 py-1 text-[0.6rem] font-bold uppercase tracking-wider">
+                          Min: {promo.minItems} productos
+                        </span>
+                      )}
+                      {promo.startsAt && (
+                        <span className="bg-surface border border-outline/20 px-2 py-1 text-[0.6rem] font-bold uppercase tracking-wider">
+                          Desde: {new Date(promo.startsAt).toLocaleDateString()}
+                        </span>
+                      )}
+                      {promo.endsAt && (
+                        <span className="bg-surface border border-outline/20 px-2 py-1 text-[0.6rem] font-bold uppercase tracking-wider text-error">
+                          Vence: {new Date(promo.endsAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-left md:text-right">
                     <p className="text-lg font-black">{promo.discountLabel}</p>
@@ -209,7 +249,7 @@ export function AdminPromotionsPage() {
 
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </section>
@@ -254,9 +294,58 @@ export function AdminPromotionsPage() {
                   onChange={(event) =>
                     setForm((current) => ({ ...current, discountValue: Number(event.target.value) || 0 }))
                   }
+                  placeholder="Valor Descuento"
                   type="number"
                   value={form.discountValue}
                 />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-[0.6rem] font-black uppercase tracking-widest text-on-surface-variant mb-1 block">Subtotal Mínimo</label>
+                  <input
+                    className="w-full border border-outline/30 px-4 py-3 text-sm"
+                    min={0}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, minSubtotal: Number(event.target.value) || 0 }))
+                    }
+                    type="number"
+                    value={form.minSubtotal}
+                  />
+                </div>
+                <div>
+                  <label className="text-[0.6rem] font-black uppercase tracking-widest text-on-surface-variant mb-1 block">Variedad Mínima (Productos)</label>
+                  <input
+                    className="w-full border border-outline/30 px-4 py-3 text-sm"
+                    min={1}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, minItems: Number(event.target.value) || 1 }))
+                    }
+                    type="number"
+                    value={form.minItems}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-[0.6rem] font-black uppercase tracking-widest text-on-surface-variant mb-1 block">Fecha Inicio</label>
+                  <input
+                    className="w-full border border-outline/30 px-4 py-3 text-sm"
+                    onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+                    type="date"
+                    value={form.startsAt}
+                  />
+                </div>
+                <div>
+                  <label className="text-[0.6rem] font-black uppercase tracking-widest text-on-surface-variant mb-1 block">Fecha Vencimiento</label>
+                  <input
+                    className="w-full border border-outline/30 px-4 py-3 text-sm"
+                    onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
+                    type="date"
+                    value={form.endsAt}
+                  />
+                </div>
               </div>
               <label className="flex items-center gap-3 text-sm">
                 <input
