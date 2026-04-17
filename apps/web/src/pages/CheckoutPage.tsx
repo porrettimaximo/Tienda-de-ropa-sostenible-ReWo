@@ -171,8 +171,9 @@ export function CheckoutPage() {
       });
       clearCart();
       if (setShowPaymentModal) setShowPaymentModal(false);
-    } catch {
-      setError("No se pudo confirmar la compra. Revisa que el backend este corriendo.");
+    } catch (err: any) {
+      console.error("Checkout error:", err);
+      setError(err instanceof Error ? err.message : "Hubo un error al procesar tu compra. Por favor intenta de nuevo.");
     } finally {
       setSubmitting(false);
       setPaymentProcessing(false);

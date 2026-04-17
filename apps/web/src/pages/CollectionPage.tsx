@@ -278,16 +278,23 @@ export function CollectionPage() {
           ) : (
             <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredProducts.map((product) => {
-                const totalStock = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
+                const totalStock = product.totalStock;
 
                 return (
                   <article key={product.slug} className="border border-outline-variant/30 bg-white">
-                    <Link className="block aspect-[4/5] overflow-hidden bg-surface-container-low" to={`/products/${product.slug}`}>
+                    <Link className="relative block aspect-[4/5] overflow-hidden bg-surface-container-low group" to={`/products/${product.slug}`}>
                       <img
                         alt={product.name}
-                        className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                        className={`h-full w-full object-cover transition-transform duration-500 hover:scale-105 ${totalStock === 0 ? 'grayscale opacity-60' : ''}`}
                         src={product.image}
                       />
+                      {totalStock === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <span className="bg-error px-4 py-2 text-[0.7rem] font-black uppercase tracking-[0.3em] text-white shadow-xl rotate-[-5deg]">
+                            Agotado
+                          </span>
+                        </div>
+                      )}
                     </Link>
 
                     <div className="p-5">
@@ -347,10 +354,14 @@ export function CollectionPage() {
                           Ver detalle
                         </Link>
                         <Link
-                          className="flex-1 bg-inverse-surface px-4 py-3 text-center text-[0.65rem] font-black uppercase tracking-[0.25em] text-surface hover:bg-secondary"
+                          className={`flex-1 px-4 py-3 text-center text-[0.65rem] font-black uppercase tracking-[0.25em] transition-all ${
+                            totalStock === 0 
+                              ? 'bg-outline/20 text-on-surface-variant/40 cursor-not-allowed pointer-events-none' 
+                              : 'bg-inverse-surface text-surface hover:bg-secondary'
+                          }`}
                           to={`/products/${product.slug}`}
                         >
-                          Comprar
+                          {totalStock === 0 ? "Sin Stock" : "Comprar"}
                         </Link>
                       </div>
                     </div>

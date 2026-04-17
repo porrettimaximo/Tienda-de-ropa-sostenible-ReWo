@@ -13,9 +13,11 @@ type ApiProductSummary = {
   slug: string;
   category: string;
   price_from: number;
+  image_url?: string | null;
   sustainability_label?: string | null;
   available_colors: string[];
   available_sizes: string[];
+  total_stock: number;
 };
 
 type ApiProductDetail = {
@@ -219,6 +221,7 @@ export type CatalogProduct = {
   category: string;
   supplierName?: string;
   sustainabilityScore?: number | null;
+  totalStock: number;
   variants: CatalogVariant[];
 };
 
@@ -497,7 +500,7 @@ function mapSummary(product: ApiProductSummary): CatalogProduct {
     subtitle: product.sustainability_label ?? product.category,
     priceLabel: formatCurrency(product.price_from),
     numericPrice: product.price_from,
-    image: fallback?.image ?? mockProducts[0].image,
+    image: product.image_url ?? fallback?.image ?? mockProducts[0].image,
     description:
       fallback?.description ??
       "Pieza curada con materiales conscientes y trazabilidad editorial.",
@@ -507,9 +510,11 @@ function mapSummary(product: ApiProductSummary): CatalogProduct {
     composition: fallback?.composition ?? "Composicion por definir",
     category: product.category,
     supplierName: fallback?.supplierName,
-    variants: []
+    variants: [],
+    totalStock: product.total_stock
   };
 }
+
 
 function mapDetail(product: ApiProductDetail): CatalogProduct {
   const fallback = getFallbackBySlug(product.slug);
@@ -544,6 +549,7 @@ function mapDetail(product: ApiProductDetail): CatalogProduct {
     category: product.category.name,
     supplierName: product.supplier?.name ?? undefined,
     sustainabilityScore: product.sustainability_score,
+    totalStock: variants.reduce((sum, v) => sum + v.stock, 0),
     variants
   };
 }
@@ -1128,6 +1134,13 @@ export async function setAdminPromotionActive(
   };
 }
 
+export async function deleteAdminPromotion(promotionId: string): Promise<void> {
+  await requestJson(`/admin/promotions/${promotionId}`, {
+    method: "DELETE"
+  });
+}
+
+
 export async function getAdminProducts(): Promise<AdminProduct[]> {
   try {
     const data = await requestJson<ApiProductDetail[]>("/admin/products");
@@ -1183,6 +1196,36 @@ export async function createAdminProduct(payload: ProductPayload): Promise<Admin
 
   return mapDetail(response.product);
 }
+
+export async function updateAdminProduct(
+  productSlug: string,
+  payload: Partial<ProductPayload>
+): Promise<AdminProduct> {
+  // Ensure we have the current product if partial fields are missing
+  const current = await getCatalogProduct(productSlug);
+  if (!current) throw new Error("Producto no encontrado");
+
+  const fullPayload: ProductPayload = {
+    name: payload.name ?? current.name,
+    slug: payload.slug ?? current.slug,
+    description: payload.description ?? current.description,
+    categoryId: payload.categoryId ?? "", // This should be provided or mapped from current
+    supplierId: payload.supplierId,
+    sustainabilityLabel: payload.sustainabilityLabel ?? current.sustainability,
+    sustainabilityScore: payload.sustainabilityScore ?? current.sustainabilityScore ?? 90,
+    imageUrl: payload.imageUrl ?? current.image,
+    initialVariants: payload.initialVariants ?? []
+  };
+
+  const response = await requestJson<{ product: ApiProductDetail }>(`/admin/products/${productSlug}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mapProductPayload(fullPayload))
+  });
+
+  return mapDetail(response.product);
+}
+
 
 export async function createAdminVariant(
   productSlug: string,

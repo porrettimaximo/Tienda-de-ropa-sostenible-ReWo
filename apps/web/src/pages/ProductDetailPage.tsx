@@ -125,16 +125,15 @@ export function ProductDetailPage() {
     <main className="px-5 py-10 md:px-8 lg:px-12">
       <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="space-y-5">
-          <div className="aspect-[4/5] overflow-hidden border border-outline-variant/30 bg-surface-container-low">
-            <img className="h-full w-full object-cover" src={selectedVariant?.image_url || product.image} alt={product.name} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[product.image, ...relatedProducts.map((item) => item.image)].slice(0, 3).map((image) => (
-              <div key={image} className="aspect-[4/5] overflow-hidden border border-outline-variant/30 bg-surface-container-low">
-                <img className="h-full w-full object-cover" src={image} alt="Vista del producto" />
+          <div className="relative aspect-[4/5] overflow-hidden border border-outline-variant/30 bg-surface-container-low">
+            <img className={`h-full w-full object-cover ${(selectedVariant?.stock ?? 0) === 0 ? 'grayscale opacity-60' : ''}`} src={selectedVariant?.image_url || product.image} alt={product.name} />
+            {(selectedVariant?.stock ?? 0) === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                <span className="bg-error px-6 py-3 text-[0.8rem] font-black uppercase tracking-[0.3em] text-white shadow-2xl rotate-[-3deg]">
+                  Fuera de Stock
+                </span>
               </div>
-            ))}
+            )}
           </div>
         </section>
 

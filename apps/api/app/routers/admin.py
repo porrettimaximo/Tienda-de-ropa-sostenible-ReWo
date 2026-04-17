@@ -98,6 +98,16 @@ def set_promotion_active(
     return service.set_active(promotion_id, is_active=is_active)
 
 
+@router.delete("/promotions/{promotion_id}")
+def delete_promotion(
+    promotion_id: str,
+    service: PromotionsService = Depends(get_promotions_service),
+) -> dict:
+    """Delete a promotion by ID"""
+    service.delete_promotion(promotion_id)
+    return {"message": "Promotion deleted successfully"}
+
+
 @router.get("/suppliers", response_model=list[Supplier])
 def list_suppliers(
     service: SuppliersService = Depends(get_suppliers_service),

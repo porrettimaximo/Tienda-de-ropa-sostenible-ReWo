@@ -19,3 +19,6 @@ class PromotionsService:
     def set_active(self, promotion_id: str, is_active: bool) -> AdminPromotionResponse:
         return AdminPromotionResponse(promotion=self.repository.set_promotion_active(promotion_id, is_active))
 
+    def delete_promotion(self, promotion_id: str) -> None:
+        self.repository.delete_promotion(promotion_id)
+

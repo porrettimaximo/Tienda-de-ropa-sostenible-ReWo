@@ -17,7 +17,7 @@ def list_products(
 @router.get("/{product_slug}", response_model=ProductDetail)
 def get_product(
     product_slug: str,
-    in_stock_only: bool = True,
+    in_stock_only: bool = False,
     service: CatalogService = Depends(get_catalog_service),
 ) -> ProductDetail:
     product = service.get_product(product_slug)
@@ -29,7 +29,7 @@ def get_product(
 @router.get("/{product_slug}/variants", response_model=list[ProductVariant])
 def get_product_variants(
     product_slug: str,
-    in_stock_only: bool = True,
+    in_stock_only: bool = False,
     service: CatalogService = Depends(get_catalog_service),
 ) -> list[ProductVariant]:
     variants = service.get_product_variants(product_slug)

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import {
   createAdminProduct,
+  updateAdminProduct,
   createAdminVariant,
   deleteAdminProduct,
   getAdminCategories,
@@ -111,6 +112,27 @@ export function AdminCatalogPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (selectedProduct) {
+      setProductForm({
+        name: selectedProduct.name,
+        slug: selectedProduct.slug,
+        description: selectedProduct.description,
+        categoryId: categories.find(c => c.name === selectedProduct.category)?.id || "",
+        supplierId: suppliers.find(s => s.name === (selectedProduct.supplierName || ""))?.id || "",
+        sustainabilityLabel: selectedProduct.sustainability,
+        sustainabilityScore: selectedProduct.sustainabilityScore || 90,
+        imageUrl: selectedProduct.image,
+        mainImageFile: null,
+        initialVariants: [], // We don't use this for editing
+        variantImageFiles: []
+      });
+    } else {
+      setProductForm(initialProductForm);
+    }
+  }, [selectedProductSlug, categories, suppliers]);
+
+
   const selectedProduct = products.find((product) => product.slug === selectedProductSlug);
 
   const filteredProducts = products.filter((product) =>
@@ -214,18 +236,38 @@ export function AdminCatalogPage() {
   async function handleUpdateProduct() {
     if (!selectedProduct) return;
     try {
+      setError("");
       setStatusMessage("Actualizando producto...");
-      const updated = await createAdminProduct({
-        ...productForm,
-        initialVariants: [] // Backend ignores this on update or we handle it differently
+      const updated = await updateAdminProduct(selectedProduct.slug, {
+        name: productForm.name,
+        description: productForm.description,
+        categoryId: productForm.categoryId,
+        supplierId: productForm.supplierId,
+        sustainabilityLabel: productForm.sustainabilityLabel,
+        sustainabilityScore: productForm.sustainabilityScore
       });
-      // Actually we should have an updateAdminProduct function in api.ts
-      // I will check api.ts for updateAdminProduct
-      setStatusMessage("Producto actualizado.");
-    } catch {
-      setError("Error al actualizar producto.");
+
+      // Update main image if present
+      let finalProduct = updated;
+      if (productForm.mainImageFile) {
+        setStatusMessage("Subiendo nueva imagen principal...");
+        finalProduct = await uploadAdminProductImage(updated.slug, productForm.mainImageFile);
+      }
+
+      setProducts((current) => current.map((p) => p.slug === selectedProduct.slug ? { ...finalProduct, variants: p.variants } : p));
+      setStatusMessage("Producto actualizado con éxito.");
+    } catch (err: any) {
+      setError(err.message || "Error al actualizar producto.");
     }
   }
+
+  const handleResetForm = () => {
+    setSelectedProductSlug("");
+    setProductForm(initialProductForm);
+    setStatusMessage("");
+    setError("");
+  };
+
 
 
   async function handleDeleteProduct(slug: string) {
@@ -330,7 +372,7 @@ export function AdminCatalogPage() {
                  value={searchTerm}
                />
              </div>
-             <div className="max-h-[500px] overflow-y-auto">
+             <div className="max-h-[900px] overflow-y-auto">
                <table className="w-full text-left">
                  <thead className="bg-[#f2f4f4] text-[0.6rem] uppercase tracking-widest text-on-surface-variant sticky top-0">
                    <tr>
@@ -362,120 +404,22 @@ export function AdminCatalogPage() {
              </div>
           </div>
 
-          {/* Gestion de Variantes */}
-          {selectedProduct && (
-            <div className="border border-outline-variant/30 bg-white p-8 space-y-8">
-               <div className="flex justify-between items-start border-b border-outline-variant/30 pb-6">
-                <div className="flex-1 space-y-4">
-                   <div className="flex justify-between">
-                     <div>
-                       <span className="text-[0.6rem] font-bold uppercase tracking-widest text-secondary">Editando Producto</span>
-                       <h2 className="font-headline text-4xl font-black uppercase tracking-tighter mt-1">{selectedProduct.name}</h2>
-                     </div>
-                     <button onClick={() => handleDeleteProduct(selectedProduct.slug)} className="text-error text-[0.6rem] font-bold uppercase border border-error/30 px-4 py-2 hover:bg-error hover:text-white transition-all">Eliminar Producto</button>
-                   </div>
-                   
-                   <div className="grid md:grid-cols-2 gap-6 bg-surface-container-lowest p-6 border border-outline-variant/10">
-                      <div className="space-y-4">
-                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Nombre</span>
-                        <input className="w-full border p-3 text-sm" value={selectedProduct.name} onChange={e => {
-                          const newName = e.target.value;
-                          // In a real app we'd need a local draft state for the product too
-                          // For now let's assume we update the list
-                          setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? {...p, name: newName} : p));
-                        }} /></label>
-                        
-                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Slug</span>
-                        <input className="w-full border p-3 text-sm bg-surface-container-low font-mono" value={selectedProduct.slug} readOnly /></label>
-                      </div>
-                      <div className="space-y-4">
-                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Descripción</span>
-                        <textarea className="w-full border p-3 text-sm min-h-[100px]" value={selectedProduct.description} onChange={e => {
-                          const newDesc = e.target.value;
-                          setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? {...p, description: newDesc} : p));
-                        }} /></label>
-                      </div>
-                      <div className="col-span-full border-t border-outline-variant/10 pt-4 flex justify-between items-center">
-                         <div className="flex gap-4 items-center">
-                            <span className="text-[0.6rem] font-bold uppercase">Foto Principal:</span>
-                            <input type="file" className="text-[0.6rem]" onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                try {
-                                  setStatusMessage("Subiendo foto principal...");
-                                  const updated = await uploadAdminProductImage(selectedProduct.slug, file);
-                                  setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? updated : p));
-                                  setStatusMessage("Foto principal actualizada.");
-                                } catch { setError("Error al subir foto."); }
-                              }
-                            }} />
-                         </div>
-                         <button onClick={async () => {
-                           // Logic to save name/desc
-                           setStatusMessage("Guardando cambios del producto...");
-                           // We need updateAdminProduct in api.ts
-                         }} className="bg-tertiary text-white text-[0.65rem] font-black uppercase px-6 py-3">Guardar Info General</button>
-                      </div>
-                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-inverse-surface pl-3">Variantes Activas</h3>
-                <div className="grid gap-4">
-                  {selectedProduct.variants.map((v) => {
-                    const draft = variantForms[v.id] ?? v;
-                    return (
-                      <div key={v.id} className="border border-outline-variant/20 p-6 bg-surface-container-lowest grid md:grid-cols-[1fr_auto] gap-6">
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                          <label className="col-span-2 md:col-span-1"><span className="text-[0.55rem] uppercase block mb-1">SKU</span><input className="w-full border p-2 text-xs" value={draft.sku} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, sku: e.target.value}}))} /></label>
-                          <label><span className="text-[0.55rem] uppercase block mb-1">Talla</span><input className="w-full border p-2 text-xs" value={draft.size} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, size: e.target.value}}))} /></label>
-                          <label><span className="text-[0.55rem] uppercase block mb-1">Color</span><input className="w-full border p-2 text-xs" value={draft.color} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, color: e.target.value}}))} /></label>
-                          <label><span className="text-[0.55rem] uppercase block mb-1">Stock</span><input type="number" className="w-full border p-2 text-xs" value={draft.stock} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, stock: Number(e.target.value)}}))} /></label>
-                          <label><span className="text-[0.55rem] uppercase block mb-1">Precio</span><input type="number" className="w-full border p-2 text-xs" value={draft.price} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, price: Number(e.target.value)}}))} /></label>
-                          <label className="col-span-full"><span className="text-[0.55rem] uppercase block mb-1">Imagen de la pieza</span>
-                            <div className="flex gap-4 items-center">
-                              <div className="w-16 h-20 bg-surface-container-low border border-outline-variant/30 flex-shrink-0 overflow-hidden">
-                                {draft.image_url ? (
-                                  <img src={draft.image_url} alt="Vista" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-[0.5rem] text-on-surface-variant/40">Sin foto</div>
-                                )}
-                              </div>
-                              <div className="flex-1 space-y-2">
-                                <input className="w-full border p-2 text-[0.65rem] font-mono" placeholder="URL de imagen..." value={draft.image_url || ""} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, image_url: e.target.value}}))} />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[0.6rem] text-on-surface-variant font-bold uppercase">O subir archivo:</span>
-                                  <input 
-                                    type="file" 
-                                    accept="image/*"
-                                    className="text-[0.6rem]" 
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleUploadVariantImage(v.id, file);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                        <div className="flex flex-col justify-end">
-                           <button onClick={() => handleUpdateVariant(selectedProduct.slug, draft)} className="bg-inverse-surface text-surface text-[0.6rem] font-bold uppercase px-4 py-3 hover:bg-secondary transition-colors">Guardar Datos</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </section>
+
 
         {/* Formulario Creación */}
         <aside className="space-y-8">
-          <section className="bg-inverse-surface text-surface p-10 shadow-xl">
-             <h2 className="font-headline text-3xl font-black uppercase tracking-tighter mb-8">Nuevo Producto Maestro</h2>
+          <section className="bg-inverse-surface text-surface p-10 shadow-xl relative overflow-hidden">
+             {selectedProductSlug && (
+               <div className="absolute top-0 right-0 p-4">
+                 <button onClick={handleResetForm} className="bg-secondary text-white text-[0.6rem] font-black uppercase px-3 py-1 hover:bg-white hover:text-secondary transition-all">Nuevo Producto</button>
+               </div>
+             )}
+             
+             <h2 className="font-headline text-3xl font-black uppercase tracking-tighter mb-8">
+               {selectedProductSlug ? `Editando: ${productForm.name}` : "Nuevo Producto Maestro"}
+             </h2>
+             
              <div className="space-y-6">
                 <div className="grid gap-4">
                   <label><span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60">Nombre del producto</span>
@@ -499,28 +443,78 @@ export function AdminCatalogPage() {
                     </select></label>
                   </div>
 
-                  <label className="block border border-white/10 p-4 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                  <div className="block border border-white/10 p-4 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                     <span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60 block mb-2">Foto Principal del Producto</span>
-                    <input type="file" className="text-xs text-white/40" onChange={e => setProductForm(prev => ({...prev, mainImageFile: e.target.files?.[0] || null}))} />
-                  </label>
+                    <div className="flex gap-4 items-center">
+                       {productForm.imageUrl && (
+                         <img src={productForm.imageUrl} className="w-12 h-12 object-cover border border-white/20" alt="Current" />
+                       )}
+                       <input type="file" className="text-xs text-white/40" onChange={e => setProductForm(prev => ({...prev, mainImageFile: e.target.files?.[0] || null}))} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="border-t border-white/10 pt-8 mt-4">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest">Configurar Variantes Iniciales</h3>
-                    <button onClick={addVariantToNewProduct} className="text-[0.6rem] bg-white text-inverse-surface px-4 py-2 font-black uppercase hover:bg-secondary hover:text-white transition-colors">+ Añadir Pieza</button>
+                    <h3 className="text-sm font-black uppercase tracking-widest">
+                      {selectedProductSlug ? "Piezas del Producto" : "Configurar Variantes Iniciales"}
+                    </h3>
+                    <button 
+                      onClick={selectedProductSlug ? () => {
+                        const modal = document.getElementById('new-variant-modal');
+                        if (modal) modal.style.display = 'block';
+                      } : addVariantToNewProduct} 
+                      className="text-[0.6rem] bg-white text-inverse-surface px-4 py-2 font-black uppercase hover:bg-secondary hover:text-white transition-colors"
+                    >
+                      + Añadir Pieza
+                    </button>
                   </div>
                   
-                  <div className="space-y-4">
-                    {productForm.initialVariants.map((v, i) => (
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                    {/* Variantes Existentes (cuando se edita) */}
+                    {selectedProduct && selectedProduct.variants.map((v) => {
+                      const draft = variantForms[v.id] ?? v;
+                      return (
+                        <div key={v.id} className="bg-white/5 border border-white/20 p-5 group transition-all hover:bg-white/10">
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                             <label><span className="text-[0.5rem] uppercase font-bold text-white/40 block mb-1">Talla</span>
+                             <input className="w-full bg-transparent border-b border-white/10 py-1 text-xs outline-none focus:border-white" value={draft.size} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, size: e.target.value}}))} /></label>
+                             
+                             <label><span className="text-[0.5rem] uppercase font-bold text-white/40 block mb-1">Color</span>
+                             <input className="w-full bg-transparent border-b border-white/10 py-1 text-xs outline-none focus:border-white" value={draft.color} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, color: e.target.value}}))} /></label>
+                             
+                             <label><span className="text-[0.5rem] uppercase font-bold text-white/40 block mb-1">Stock</span>
+                             <input type="number" className="w-full bg-transparent border-b border-white/10 py-1 text-xs outline-none focus:border-white" value={draft.stock} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, stock: Number(e.target.value)}}))} /></label>
+                             
+                             <label><span className="text-[0.5rem] uppercase font-bold text-white/40 block mb-1">Precio</span>
+                             <input type="number" className="w-full bg-transparent border-b border-white/10 py-1 text-xs outline-none focus:border-white" value={draft.price} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, price: Number(e.target.value)}}))} /></label>
+                          </div>
+                          
+                          <div className="flex gap-4 items-center mb-4">
+                            <div className="w-10 h-12 bg-white/10 border border-white/10 flex-shrink-0 overflow-hidden">
+                              {draft.image_url ? <img src={draft.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[0.4rem] text-white/20">X</div>}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                               <input placeholder="URL imagen..." className="w-full bg-transparent border-b border-white/10 py-1 text-[0.55rem] font-mono outline-none focus:border-white" value={draft.image_url || ""} onChange={e => setVariantForms(prev => ({...prev, [v.id]: {...draft, image_url: e.target.value}}))} />
+                               <input type="file" className="text-[0.5rem] text-white/40" onChange={e => e.target.files?.[0] && handleUploadVariantImage(v.id, e.target.files[0])} />
+                            </div>
+                          </div>
+
+                          <button onClick={() => handleUpdateVariant(selectedProduct.slug, draft)} className="w-full bg-white/10 py-2 text-[0.55rem] font-black uppercase hover:bg-white hover:text-black transition-all">Actualizar Pieza</button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Variantes Iniciales (cuando es nuevo) */}
+                    {!selectedProductSlug && productForm.initialVariants.map((v, i) => (
                       <div key={i} className="bg-white/5 border border-white/10 p-6 relative group">
                         <button onClick={() => removeVariantFromNewProduct(i)} className="absolute -top-2 -right-2 bg-error text-white w-6 h-6 rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">X</button>
                         <div className="grid grid-cols-2 gap-4">
                            <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Talla</span>
-                           <input placeholder="Ej: M, L, Única" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.size} onChange={e => updateNewVariantEntry(i, 'size', e.target.value)} /></label>
+                           <input placeholder="Ej: M, L" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.size} onChange={e => updateNewVariantEntry(i, 'size', e.target.value)} /></label>
                            
                            <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Color</span>
-                           <input placeholder="Ej: Musgo, Arena" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.color} onChange={e => updateNewVariantEntry(i, 'color', e.target.value)} /></label>
+                           <input placeholder="Ej: Musgo" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.color} onChange={e => updateNewVariantEntry(i, 'color', e.target.value)} /></label>
                            
                            <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Precio</span>
                            <input placeholder="0" type="number" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.price} onChange={e => updateNewVariantEntry(i, 'price', Number(e.target.value))} /></label>
@@ -528,19 +522,58 @@ export function AdminCatalogPage() {
                            <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Stock</span>
                            <input placeholder="10" type="number" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.stock} onChange={e => updateNewVariantEntry(i, 'stock', Number(e.target.value))} /></label>
                            
-                           <label className="col-span-full"><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Imagen de esta pieza</span>
-                           <input type="file" className="text-[0.6rem] text-white/40" onChange={e => updateNewVariantFile(i, e.target.files?.[0] || null)} />
-                           <p className="text-[0.5rem] text-white/30 mt-1">O pega una URL abajo:</p>
-                           <input placeholder="https://..." className="w-full bg-transparent border-b border-white/20 py-2 text-[0.6rem] font-mono outline-none focus:border-white" value={v.image_url || ""} onChange={e => updateNewVariantEntry(i, 'image_url', e.target.value)} /></label>
+                           <label className="col-span-full"><span className="text-[0.5rem] uppercase font-bold text-white/40 block mb-1">Foto de pieza</span>
+                             <div className="flex gap-3 items-center">
+                               <input type="file" className="text-[0.5rem] text-white/40" onChange={e => updateNewVariantFile(i, e.target.files?.[0] || null)} />
+                               <input placeholder="O URL..." className="flex-1 bg-transparent border-b border-white/10 py-1 text-[0.55rem] font-mono outline-none focus:border-white" value={v.image_url || ""} onChange={e => updateNewVariantEntry(i, 'image_url', e.target.value)} />
+                             </div>
+                           </label>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <button onClick={handleCreateProduct} className="w-full bg-secondary hover:bg-tertiary text-white py-5 font-black uppercase tracking-[0.3em] transition-all text-sm mt-8">Finalizar y Publicar Producto</button>
+                {/* Modal para nueva variante (edición) */}
+                {selectedProductSlug && (
+                  <div id="new-variant-modal" style={{display: 'none'}} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                    <div className="bg-white p-8 max-w-md w-full shadow-2xl border border-outline-variant/30">
+                      <h4 className="font-headline text-2xl font-black uppercase tracking-tighter mb-6">Añadir Nueva Variante</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label><span className="text-[0.6rem] uppercase font-bold">Talla</span><input className="w-full border p-3 text-sm" value={newVariantForm.size} onChange={e => setNewVariantForm({...newVariantForm, size: e.target.value})} /></label>
+                        <label><span className="text-[0.6rem] uppercase font-bold">Color</span><input className="w-full border p-3 text-sm" value={newVariantForm.color} onChange={e => setNewVariantForm({...newVariantForm, color: e.target.value})} /></label>
+                        <label><span className="text-[0.6rem] uppercase font-bold">Stock</span><input type="number" className="w-full border p-3 text-sm" value={newVariantForm.stock} onChange={e => setNewVariantForm({...newVariantForm, stock: Number(e.target.value)})} /></label>
+                        <label><span className="text-[0.6rem] uppercase font-bold">Precio</span><input type="number" className="w-full border p-3 text-sm" value={newVariantForm.price} onChange={e => setNewVariantForm({...newVariantForm, price: Number(e.target.value)})} /></label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-8">
+                        <button onClick={() => {
+                          const modal = document.getElementById('new-variant-modal');
+                          if (modal) modal.style.display = 'none';
+                        }} className="border border-outline px-6 py-3 text-[0.6rem] font-black uppercase">Cancelar</button>
+                        <button onClick={async () => {
+                          await handleCreateVariant();
+                          const modal = document.getElementById('new-variant-modal');
+                          if (modal) modal.style.display = 'none';
+                        }} className="bg-secondary text-white px-6 py-3 text-[0.6rem] font-black uppercase hover:bg-tertiary">Confirmar</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+                <button 
+                  onClick={selectedProductSlug ? handleUpdateProduct : handleCreateProduct} 
+                  className={`w-full py-5 font-black uppercase tracking-[0.3em] transition-all text-sm mt-8 shadow-lg ${selectedProductSlug ? 'bg-tertiary hover:bg-secondary' : 'bg-secondary hover:bg-tertiary'} text-white`}
+                >
+                  {selectedProductSlug ? "Guardar Cambios del Producto" : "Finalizar y Publicar Producto"}
+                </button>
+
+                {selectedProductSlug && (
+                  <button onClick={() => handleDeleteProduct(selectedProductSlug)} className="w-full border border-error/40 text-error text-[0.65rem] font-black uppercase py-4 hover:bg-error hover:text-white transition-all mt-4">Eliminar Producto Permanentemente</button>
+                )}
              </div>
           </section>
+
 
           {statusMessage && <div className="p-4 bg-secondary/10 border border-secondary text-secondary text-xs font-bold uppercase text-center">{statusMessage}</div>}
           {error && <div className="p-4 bg-error/10 border border-error text-error text-xs font-bold uppercase text-center">{error}</div>}

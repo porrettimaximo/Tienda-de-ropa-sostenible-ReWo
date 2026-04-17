@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { getStoredUser } from "../lib/api";
+
 
 const supplierCards = [
   {
@@ -22,13 +24,16 @@ const supplierCards = [
 ];
 
 export function HomePage() {
+  const user = getStoredUser();
+
   return (
+
     <main>
       <section className="relative flex min-h-[720px] items-end overflow-hidden md:h-[921px]">
         <img
           className="absolute inset-0 h-full w-full object-cover"
           alt="Modelo con ropa sostenible en entorno arquitectónico"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRWJC9psO5bAE3szjHFjIZZV2gkA-Zjpx2ezvgJqQrORz4lROjznCtf_Z5ikMwvNO_I3oEQ9Dzj60E75GL_2g02dkZD2Fwg744ilWKpJdp1IhFsx8BKmEnESbxziIm5VQDpWEgQCbLivz2hsiCxtZbCOyx-so-GLp5_1RA0-HXhZijXtd_R8O-W-3WC5KAHR1nHWIR7IdLNhCg8B815bcQeUJEkc-FeWn0E1Sz-jC2PV17wFHb4870hyrQ2GdEia4TtQ_UzMM-E4-s"
+          src="/hero/moda_que_respira.png"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/60 to-transparent" />
         <div className="relative z-10 max-w-4xl px-5 pb-16 md:px-12 md:pb-24">
@@ -55,80 +60,10 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="bg-surface px-5 py-16 md:px-12 md:py-24">
-        <div className="mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="font-headline text-4xl font-black uppercase tracking-tighter">
-              Esenciales de Temporada
-            </h2>
-            <p className="mt-4 max-w-md text-base font-light leading-relaxed text-on-surface-variant">
-              Piezas diseñadas para la permanencia. Materiales orgánicos certificados y
-              procesos de bajo impacto.
-            </p>
-          </div>
-          <Link
-            className="w-fit border-b-2 border-on-surface pb-1 text-sm font-bold uppercase tracking-widest transition-colors hover:text-secondary"
-            to="/collections"
-          >
-            Explorar Todo
-          </Link>
-        </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-12">
-          <div className="group cursor-pointer md:col-span-8">
-            <div className="relative mb-6 aspect-[16/10] overflow-hidden bg-surface-container-low">
-              <img
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                alt="Camisa premium de algodón orgánico"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuV-Bkjl_L56wf2HCcUMom9b2MngiT9ZSQMCaZ4Beml1ZtHe_LeCYWMBBqTTlqz1PG17eFJxuJqRfBmcvPta_DO4CsCBd1D5d8IjnOppWjP3oui4YJPT--6njD1CtgYp954ncRXuieReXnEuqQuRXnqGAuq1lzceI80jageIr30FP50bAwVCxfRbC3KfDyUe9Rf0I8jCm0Eg7Cra-7q6-0jjjAyU20AC_-SJc3StI7bz6sctEDD4RdDColBLDAs7kK8PKrk2SNWRZ6"
-              />
-            </div>
-            <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h3 className="font-headline text-2xl font-bold uppercase tracking-tighter">
-                  Camisa Lino Ancestral
-                </h3>
-                <div className="mt-4 flex gap-2">
-                  <div className="h-6 w-6 border border-outline/20 bg-secondary-dim" />
-                  <div className="h-6 w-6 border border-outline/20 bg-surface-dim" />
-                  <div className="h-6 w-6 border border-outline/20 bg-inverse-surface" />
-                </div>
-              </div>
-              <div className="md:text-right">
-                <p className="text-xl font-bold">$1,850 MXN</p>
-                <div className="mt-4 flex flex-wrap gap-3 md:justify-end">
-                  <span className="border border-outline/30 px-2 py-1 text-[10px] font-bold">XS</span>
-                  <span className="border border-outline/30 px-2 py-1 text-[10px] font-bold">S</span>
-                  <span className="bg-on-surface px-2 py-1 text-[10px] font-bold text-surface">M</span>
-                  <span className="border border-outline/30 px-2 py-1 text-[10px] font-bold">L</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="group flex cursor-pointer flex-col md:col-span-4">
-            <div className="relative mb-6 flex-grow overflow-hidden bg-surface-container-low">
-              <img
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                alt="Textura de denim sostenible"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAI7fZKK-X51eVMYtYdAcO-yxk4SQGI3a5EIT9UrK0zTt6tS1atnJi3UHlS_iHlsZFroRvf9v7eX3GEAO2LfqhIs-MZNGjuSJed8-7i5WUg3dygXFVEnsCZyWcVZbeqR6hiFR-MPppffmIpzzYJqLfcS6_LkpUySDKEoGTQ611kBMASY7UnieN15nuWkK7TEwj5zjsG5OxzgQZEzoJ84np3gcpe7wPK7MqfWyBDdbHYIkO7vIsDse4FIraVke3q-YIti20b1RVNZHV"
-              />
-            </div>
-            <div>
-              <h3 className="font-headline text-xl font-bold uppercase tracking-tighter">
-                Pantalón Cáñamo Denim
-              </h3>
-              <p className="mt-1 font-bold text-on-surface-variant">$2,400 MXN</p>
-              <div className="mt-4 flex gap-2">
-                <div className="h-5 w-5 border border-outline/20 bg-secondary" />
-                <div className="h-5 w-5 border border-outline/20 bg-tertiary-dim" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <section className="mx-5 mb-16 mt-24 flex flex-col bg-inverse-surface md:mx-12 md:mb-24 md:mt-32 md:flex-row">
 
-      <section className="mx-5 mb-16 flex flex-col bg-inverse-surface md:mx-12 md:mb-24 md:flex-row">
         <div className="flex flex-1 flex-col justify-center p-10 md:p-16">
           <h2 className="font-headline text-4xl font-black uppercase tracking-tighter text-white md:text-5xl">
             Combos de Temporada
@@ -164,7 +99,21 @@ export function HomePage() {
             <p className="mb-12 mt-8 text-lg leading-relaxed text-on-surface">
               Cada gramo de CO2 evitado se traduce en beneficios reales. Únete a la comunidad que está rediseñando el futuro de la moda en México.
             </p>
+            {user ? (
+              <div className="bg-secondary/10 px-6 py-6 border border-secondary/30">
+                <p className="font-headline text-xl font-black uppercase tracking-tighter text-secondary">¡Ya eres parte!</p>
+                <p className="text-sm mt-2 font-light text-on-surface">Gracias por ser parte de la revolución sostenible, <span className="font-bold">{user.name}</span>. Acumula puntos con cada compra.</p>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-block bg-inverse-surface px-8 py-4 text-sm font-bold uppercase tracking-tight text-surface transition-all hover:bg-neutral-800"
+              >
+                Inicia sesión para unirte
+              </Link>
+            )}
           </div>
+
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex aspect-square flex-col justify-between bg-surface-container-lowest p-8">

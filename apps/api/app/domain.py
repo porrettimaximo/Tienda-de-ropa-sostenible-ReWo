@@ -41,9 +41,11 @@ class ProductSummary(BaseModel):
     slug: str
     category: str
     price_from: float
+    image_url: str | None = None
     sustainability_label: str | None = None
     available_colors: list[str]
     available_sizes: list[str]
+    total_stock: int = 0
 
 
 class ProductDetail(BaseModel):

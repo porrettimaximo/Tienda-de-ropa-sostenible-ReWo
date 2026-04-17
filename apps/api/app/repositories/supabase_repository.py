@@ -55,13 +55,14 @@ class SupabaseRepository:
                 name=product.name,
                 slug=product.slug,
                 category=product.category.name,
-                price_from=min(variant.price for variant in product.variants if variant.stock > 0),
+                price_from=min((variant.price for variant in product.variants), default=0),
+                image_url=product.image_url or (product.variants[0].image_url if product.variants else None),
                 sustainability_label=product.sustainability_label,
-                available_colors=sorted({variant.color for variant in product.variants if variant.stock > 0}),
-                available_sizes=sorted({variant.size for variant in product.variants if variant.stock > 0}),
+                available_colors=sorted({variant.color for variant in product.variants}),
+                available_sizes=sorted({variant.size for variant in product.variants}),
+                total_stock=sum(variant.stock for variant in product.variants),
             )
             for product in self.list_product_details()
-            if any(variant.stock > 0 for variant in product.variants)
         ]
 
     def list_product_details(self) -> list[ProductDetail]:
@@ -1002,6 +1003,10 @@ class SupabaseRepository:
             ends_at=self._parse_ts(row.get("ends_at")),
             is_active=row.get("is_active", True),
         )
+
+    def delete_promotion(self, promotion_id: str) -> None:
+        client = self._client()
+        client.table("promotions").delete().eq("id", promotion_id).execute()
 
     def _find_customer(self, identifier: str) -> LoyaltyCustomer:
         client = self._client()

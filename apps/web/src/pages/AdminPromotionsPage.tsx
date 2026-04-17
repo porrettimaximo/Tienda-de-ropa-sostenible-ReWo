@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import {
   createAdminPromotion,
+  deleteAdminPromotion,
   getAdminPromotions,
   setAdminPromotionActive,
   updateAdminPromotion,
@@ -99,6 +100,22 @@ export function AdminPromotionsPage() {
     }
   }
 
+  async function handleDelete(id: string) {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta promoción?")) return;
+    try {
+      setError("");
+      setStatus("");
+      await deleteAdminPromotion(id);
+      setPromotions((current) => current.filter((p) => p.id !== id));
+      if (selectedId === id) {
+        setSelectedId("");
+      }
+      setStatus("Promocion eliminada.");
+    } catch {
+      setError("No se pudo eliminar la promocion.");
+    }
+  }
+
   return (
     <main className="px-5 py-12 md:px-8 lg:px-12">
       <header className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -179,6 +196,17 @@ export function AdminPromotionsPage() {
                     >
                       {promo.isActive ? "Desactivar" : "Activar"}
                     </button>
+                    <button
+                      className="mt-3 border border-error/30 px-4 py-2 text-[0.65rem] font-black uppercase tracking-[0.2em] text-error hover:bg-error hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(promo.id);
+                      }}
+                      type="button"
+                    >
+                      Eliminar
+                    </button>
+
                   </div>
                 </div>
               </button>
@@ -254,6 +282,14 @@ export function AdminPromotionsPage() {
                   type="button"
                 >
                   Guardar
+                </button>
+                <button
+                  className="col-span-2 border border-error/30 px-6 py-4 text-[0.7rem] font-black uppercase tracking-[0.25em] text-error hover:bg-error hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!selectedPromotion}
+                  onClick={() => selectedPromotion && handleDelete(selectedPromotion.id)}
+                  type="button"
+                >
+                  Eliminar Permanentemente
                 </button>
               </div>
             </div>
