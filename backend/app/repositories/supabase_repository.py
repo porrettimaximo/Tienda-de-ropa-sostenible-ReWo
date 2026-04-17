@@ -1,4 +1,7 @@
 from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -66,10 +69,19 @@ class SupabaseRepository:
             for product in self.list_product_details()
         ]
 
-    def list_product_details(self) -> list[ProductDetail]:
+    def list_product_details(self, active_only: bool = True) -> list[ProductDetail]:
         client = self._client()
-        products_rows = client.table("products").select("*").eq("is_active", True).execute().data or []
-        variants_rows = client.table("product_variants").select("*").eq("is_active", True).execute().data or []
+        products_query = client.table("products").select("*")
+        if active_only:
+            products_query = products_query.eq("is_active", True)
+        products_rows = products_query.execute().data or []
+
+        variants_query = client.table("product_variants").select("*")
+        if active_only:
+            variants_query = variants_query.eq("is_active", True)
+        variants_rows = variants_query.execute().data or []
+        status_desc = "active" if active_only else "total"
+        logger.info(f"DB: Found {len(products_rows)} {status_desc} products and {len(variants_rows)} {status_desc} variants")
         categories_rows = client.table("categories").select("*").execute().data or []
         suppliers_rows = client.table("suppliers").select("*").execute().data or []
 
@@ -136,11 +148,23 @@ class SupabaseRepository:
             )
         return products
 
-    def get_product(self, product_slug: str) -> ProductDetail:
-        for product in self.list_product_details():
-            if product.slug == product_slug:
+    def get_product(self, product_slug: str, active_only: bool = True) -> ProductDetail:
+        target = (product_slug or "").strip().lower()
+        for product in self.list_product_details(active_only=active_only):
+            if (product.slug or "").strip().lower() == target:
                 return product
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
+        
+        # If not found but active_only was True, try finding it inactive to give a better error
+        if active_only:
+            try:
+                inactive_product = self.get_product(product_slug, active_only=False)
+                if inactive_product:
+                    raise HTTPException(status_code=400, detail=f"El producto '{product_slug}' no está disponible actualmente")
+            except HTTPException as e:
+                if e.status_code == 400:
+                    raise e
+                    
+        raise HTTPException(status_code=404, detail=f"Producto '{product_slug}' no encontrado")
 
     def authenticate_client(self, identifier: str, password: str) -> AuthUser:
         if not password:
@@ -435,6 +459,7 @@ class SupabaseRepository:
                     "image_url": payload.image_url,
                     "sustainability_label": payload.sustainability_label,
                     "sustainability_score": payload.sustainability_score,
+                    "is_active": True,
                 }
             )
             .execute()
@@ -455,6 +480,7 @@ class SupabaseRepository:
                 "stock": var.stock,
                 "price_override": var.price,
                 "image_url": var.image_url,
+                "is_active": True,
             }).execute()
 
         return self.get_product(payload.slug)
@@ -490,6 +516,7 @@ class SupabaseRepository:
                     "stock": payload.stock,
                     "price_override": payload.price,
                     "image_url": payload.image_url,
+                    "is_active": True,
                 }
             )
             .execute()
@@ -573,11 +600,53 @@ class SupabaseRepository:
         product_slugs: list[str] = []
 
         # Phase 1: Preparation and validation
+        logger.info(f"Checkout payload: {len(payload.items)} items")
         rpc_items = []
         for requested_item in payload.items:
-            product = self.get_product(requested_item.product_slug)
-            variant = next((item for item in product.variants if item.id == requested_item.variant_id), None)
+            logger.info(f"Checking product_slug={requested_item.product_slug}, variant_id={requested_item.variant_id}")
+            try:
+                # We try to get the product even if inactive to give a better error message
+                product = self.get_product(requested_item.product_slug, active_only=False)
+                
+                # Check if it's active manually if we want to enforce it (which we do for checkout)
+                # Note: ProductDetail doesn't have is_active yet, so we assume if it's found with active_only=True it's active.
+                # Let's try fetching with active_only=True first, and if fails, try active_only=False.
+                try:
+                    product = self.get_product(requested_item.product_slug, active_only=True)
+                except HTTPException as e:
+                    if e.status_code == 400: # Found but inactive
+                        raise e
+                    raise e # 404
+                    
+            except HTTPException as e:
+                if e.status_code == 404:
+                    logger.error(f"Product not found during checkout: {requested_item.product_slug}")
+                elif e.status_code == 400:
+                    logger.warning(f"Product inactive during checkout: {requested_item.product_slug}")
+                raise e
+                
+            # Robust lookup: try exact ID match, then try composite friendly ID (slug-size-color)
+            variant = None
+            requested_id_lower = requested_item.variant_id.lower()
+            
+            for v in product.variants:
+                if v.id == requested_item.variant_id:
+                    variant = v
+                    break
+                
+                # Check for friendly ID: slug-size-color (normalized)
+                friendly_id = f"{product.slug}-{v.size}-{v.color}".lower().replace(" ", "-")
+                if friendly_id == requested_id_lower:
+                    variant = v
+                    break
+                
+                # Also check SKU as a fallback
+                if v.sku and v.sku.lower() == requested_id_lower:
+                    variant = v
+                    break
+
             if variant is None:
+                logger.error(f"Variant not found during checkout: {requested_item.variant_id} for product {requested_item.product_slug}")
                 raise HTTPException(status_code=404, detail=f"Variante {requested_item.variant_id} no encontrada")
             
             line_total = variant.price * requested_item.quantity
