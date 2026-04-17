@@ -1,4 +1,4 @@
-from app.domain import ProductDetail, ProductSummary, ProductVariant
+from app.domain import Category, ProductDetail, ProductSummary, ProductVariant
 from app.repositories.base import EcommerceRepository
 from app.schemas import AdminProductResponse, AdminVariantResponse, ProductUpsertRequest, VariantUpsertRequest
 
@@ -53,4 +53,8 @@ class CatalogService:
             if v.id == variant_id:
                 return AdminVariantResponse(variant=v)
         raise Exception("Variant not found after upload")
+
+    def list_categories(self) -> list[Category]:
+        return self.repository.list_categories()
+
 

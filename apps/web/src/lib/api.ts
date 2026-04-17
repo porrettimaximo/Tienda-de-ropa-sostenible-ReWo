@@ -1140,6 +1140,15 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
   }
 }
 
+export async function getAdminCategories(): Promise<Array<{ id: string; name: string; slug: string }>> {
+  try {
+    return await requestJson<Array<{ id: string; name: string; slug: string }>>("/admin/categories");
+  } catch {
+    return [];
+  }
+}
+
+
 export async function updateAdminVariant(
   productSlug: string,
   variantId: string,

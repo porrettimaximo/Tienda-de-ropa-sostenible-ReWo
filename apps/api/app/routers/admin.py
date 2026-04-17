@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 
-from app.domain import ProductDetail, Promotion, Supplier
+from app.domain import Category, ProductDetail, Promotion, Supplier
 from app.security import require_admin
 from app.schemas import (
     AdminProductResponse,
@@ -175,4 +175,12 @@ async def upload_variant_image(
     file_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
     return service.upload_variant_image(product_slug, variant_id, file.filename, file_bytes, content_type)
+
+
+@router.get("/categories", response_model=list[Category])
+def list_categories(
+    service: CatalogService = Depends(get_catalog_service),
+) -> list[Category]:
+    return service.list_categories()
+
 

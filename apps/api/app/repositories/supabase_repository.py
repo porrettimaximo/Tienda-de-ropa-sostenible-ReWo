@@ -1235,3 +1235,9 @@ class SupabaseRepository:
         if self.client is None:
             raise RuntimeError("Supabase no configurado")
         return self.client
+
+    def list_categories(self) -> list[Category]:
+        client = self._client()
+        rows = client.table("categories").select("*").execute().data or []
+        return [Category(id=row["id"], name=row["name"], slug=row["slug"]) for row in rows]
+

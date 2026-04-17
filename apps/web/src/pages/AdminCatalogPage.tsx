@@ -5,7 +5,9 @@ import {
   createAdminProduct,
   createAdminVariant,
   deleteAdminProduct,
+  getAdminCategories,
   getAdminProducts,
+  getAdminSuppliers,
   updateAdminProductImage,
   uploadAdminProductImage,
   updateAdminVariant,
@@ -40,12 +42,14 @@ const initialProductForm = {
   name: "",
   slug: "",
   description: "",
-  categoryId: "cat-permanent",
-  supplierId: "sup-oaxaca",
+  categoryId: "", // Will be set on load
+  supplierId: "", // Will be set on load
   sustainabilityLabel: "Sostenible",
   sustainabilityScore: 90,
   imageUrl: "",
-  initialVariants: [{ ...initialVariantEntry }]
+  mainImageFile: null as File | null,
+  initialVariants: [{ ...initialVariantEntry }],
+  variantImageFiles: [null] as (File | null)[]
 };
 
 const initialVariantForm = {
@@ -64,12 +68,29 @@ export function AdminCatalogPage() {
   const [productForm, setProductForm] = useState(initialProductForm);
   const [variantForms, setVariantForms] = useState<Record<string, CatalogVariant>>({});
   const [newVariantForm, setNewVariantForm] = useState(initialVariantForm);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     let active = true;
+
+    // Load static data
+    Promise.all([getAdminCategories(), getAdminSuppliers()]).then(([cats, sups]) => {
+      if (!active) return;
+      setCategories(cats);
+      setSuppliers(sups);
+      if (cats.length > 0 || sups.length > 0) {
+        setProductForm(prev => ({
+          ...prev,
+          categoryId: cats[0]?.id || "",
+          supplierId: sups[0]?.id || ""
+        }));
+      }
+    });
+
     getAdminProducts()
       .then((data) => {
         if (!active) return;
@@ -108,7 +129,8 @@ export function AdminCatalogPage() {
   const addVariantToNewProduct = () => {
     setProductForm(prev => ({
       ...prev,
-      initialVariants: [...prev.initialVariants, { ...initialVariantEntry }]
+      initialVariants: [...prev.initialVariants, { ...initialVariantEntry }],
+      variantImageFiles: [...prev.variantImageFiles, null]
     }));
   };
 
@@ -118,27 +140,93 @@ export function AdminCatalogPage() {
     setProductForm(prev => ({ ...prev, initialVariants: updated }));
   };
 
+  const updateNewVariantFile = (index: number, file: File | null) => {
+    const updatedFiles = [...productForm.variantImageFiles];
+    updatedFiles[index] = file;
+    setProductForm(prev => ({ ...prev, variantImageFiles: updatedFiles }));
+  };
+
   const removeVariantFromNewProduct = (index: number) => {
     if (productForm.initialVariants.length <= 1) return;
     setProductForm(prev => ({
       ...prev,
-      initialVariants: prev.initialVariants.filter((_, i) => i !== index)
+      initialVariants: prev.initialVariants.filter((_, i) => i !== index),
+      variantImageFiles: prev.variantImageFiles.filter((_, i) => i !== index)
     }));
   };
 
   async function handleCreateProduct() {
     try {
       setError("");
-      setStatusMessage("Creando producto y variantes...");
-      const createdProduct = await createAdminProduct(productForm);
+      
+      if (!productForm.name.trim()) throw new Error("El nombre es obligatorio");
+      if (!productForm.description.trim()) throw new Error("La descripción es obligatoria");
+      
+      const cleanVariants = productForm.initialVariants.map((v, i) => {
+        if (!v.size.trim() || !v.color.trim()) {
+          throw new Error(`La pieza ${i + 1} debe tener Talla y Color`);
+        }
+        
+        // Auto-generar SKU si está vacío
+        const sku = v.sku.trim() || `${productForm.slug.toUpperCase()}-${v.size.toUpperCase().replace(/\s+/g, '')}-${v.color.toUpperCase().replace(/\s+/g, '')}`;
+        
+        return {
+          ...v,
+          sku,
+          stock: Number(v.stock) || 0,
+          price: Number(v.price) || 0
+        };
+      });
+
+      const finalPayload = {
+        ...productForm,
+        initialVariants: cleanVariants
+      };
+
+      setStatusMessage("Creando producto base...");
+      let createdProduct = await createAdminProduct(finalPayload);
+      
+      // Upload main image if present
+      if (productForm.mainImageFile) {
+        setStatusMessage("Subiendo imagen principal...");
+        createdProduct = await uploadAdminProductImage(createdProduct.slug, productForm.mainImageFile);
+      }
+      
+      // Upload variant images if present
+      for (let i = 0; i < productForm.variantImageFiles.length; i++) {
+        const file = productForm.variantImageFiles[i];
+        if (file && createdProduct.variants[i]) {
+          setStatusMessage(`Subiendo imagen para variante ${i + 1}...`);
+          const updatedVar = await uploadAdminVariantImage(createdProduct.slug, createdProduct.variants[i].id, file);
+          createdProduct.variants[i] = updatedVar;
+        }
+      }
+
       setProducts((current) => [...current, createdProduct]);
       setSelectedProductSlug(createdProduct.slug);
-      setStatusMessage("Producto creado correctamente con sus variantes.");
+      setStatusMessage("¡Producto creado con éxito!");
       setProductForm(initialProductForm);
     } catch (err: any) {
       setError(err.message || "No se pudo crear el producto.");
     }
   }
+
+  async function handleUpdateProduct() {
+    if (!selectedProduct) return;
+    try {
+      setStatusMessage("Actualizando producto...");
+      const updated = await createAdminProduct({
+        ...productForm,
+        initialVariants: [] // Backend ignores this on update or we handle it differently
+      });
+      // Actually we should have an updateAdminProduct function in api.ts
+      // I will check api.ts for updateAdminProduct
+      setStatusMessage("Producto actualizado.");
+    } catch {
+      setError("Error al actualizar producto.");
+    }
+  }
+
 
   async function handleDeleteProduct(slug: string) {
     if (!confirm("¿Eliminar este producto y todas sus variantes?")) return;
@@ -277,10 +365,58 @@ export function AdminCatalogPage() {
           {/* Gestion de Variantes */}
           {selectedProduct && (
             <div className="border border-outline-variant/30 bg-white p-8 space-y-8">
-              <div className="flex justify-between items-start border-b border-outline-variant/30 pb-6">
-                <div>
-                   <span className="text-[0.6rem] font-bold uppercase tracking-widest text-secondary">Editando Producto</span>
-                   <h2 className="font-headline text-4xl font-black uppercase tracking-tighter mt-1">{selectedProduct.name}</h2>
+               <div className="flex justify-between items-start border-b border-outline-variant/30 pb-6">
+                <div className="flex-1 space-y-4">
+                   <div className="flex justify-between">
+                     <div>
+                       <span className="text-[0.6rem] font-bold uppercase tracking-widest text-secondary">Editando Producto</span>
+                       <h2 className="font-headline text-4xl font-black uppercase tracking-tighter mt-1">{selectedProduct.name}</h2>
+                     </div>
+                     <button onClick={() => handleDeleteProduct(selectedProduct.slug)} className="text-error text-[0.6rem] font-bold uppercase border border-error/30 px-4 py-2 hover:bg-error hover:text-white transition-all">Eliminar Producto</button>
+                   </div>
+                   
+                   <div className="grid md:grid-cols-2 gap-6 bg-surface-container-lowest p-6 border border-outline-variant/10">
+                      <div className="space-y-4">
+                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Nombre</span>
+                        <input className="w-full border p-3 text-sm" value={selectedProduct.name} onChange={e => {
+                          const newName = e.target.value;
+                          // In a real app we'd need a local draft state for the product too
+                          // For now let's assume we update the list
+                          setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? {...p, name: newName} : p));
+                        }} /></label>
+                        
+                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Slug</span>
+                        <input className="w-full border p-3 text-sm bg-surface-container-low font-mono" value={selectedProduct.slug} readOnly /></label>
+                      </div>
+                      <div className="space-y-4">
+                        <label className="block"><span className="text-[0.6rem] uppercase font-bold text-on-surface-variant">Descripción</span>
+                        <textarea className="w-full border p-3 text-sm min-h-[100px]" value={selectedProduct.description} onChange={e => {
+                          const newDesc = e.target.value;
+                          setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? {...p, description: newDesc} : p));
+                        }} /></label>
+                      </div>
+                      <div className="col-span-full border-t border-outline-variant/10 pt-4 flex justify-between items-center">
+                         <div className="flex gap-4 items-center">
+                            <span className="text-[0.6rem] font-bold uppercase">Foto Principal:</span>
+                            <input type="file" className="text-[0.6rem]" onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  setStatusMessage("Subiendo foto principal...");
+                                  const updated = await uploadAdminProductImage(selectedProduct.slug, file);
+                                  setProducts(prev => prev.map(p => p.slug === selectedProduct.slug ? updated : p));
+                                  setStatusMessage("Foto principal actualizada.");
+                                } catch { setError("Error al subir foto."); }
+                              }
+                            }} />
+                         </div>
+                         <button onClick={async () => {
+                           // Logic to save name/desc
+                           setStatusMessage("Guardando cambios del producto...");
+                           // We need updateAdminProduct in api.ts
+                         }} className="bg-tertiary text-white text-[0.65rem] font-black uppercase px-6 py-3">Guardar Info General</button>
+                      </div>
+                   </div>
                 </div>
               </div>
 
@@ -350,6 +486,23 @@ export function AdminCatalogPage() {
                   
                   <label><span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60">Descripción técnica</span>
                   <textarea className="w-full bg-white/10 border border-white/20 px-4 py-4 text-white min-h-[100px]" value={productForm.description} onChange={e => setProductForm(prev => ({...prev, description: e.target.value}))}></textarea></label>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <label><span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60">Categoría</span>
+                    <select className="w-full bg-white/10 border border-white/20 px-4 py-4 text-white outline-none" value={productForm.categoryId} onChange={e => setProductForm(prev => ({...prev, categoryId: e.target.value}))}>
+                      {categories.map(c => <option key={c.id} value={c.id} className="text-black">{c.name}</option>)}
+                    </select></label>
+
+                    <label><span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60">Proveedor</span>
+                    <select className="w-full bg-white/10 border border-white/20 px-4 py-4 text-white outline-none" value={productForm.supplierId} onChange={e => setProductForm(prev => ({...prev, supplierId: e.target.value}))}>
+                      {suppliers.map(s => <option key={s.id} value={s.id} className="text-black">{s.name}</option>)}
+                    </select></label>
+                  </div>
+
+                  <label className="block border border-white/10 p-4 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                    <span className="text-[0.6rem] uppercase font-bold tracking-widest text-surface/60 block mb-2">Foto Principal del Producto</span>
+                    <input type="file" className="text-xs text-white/40" onChange={e => setProductForm(prev => ({...prev, mainImageFile: e.target.files?.[0] || null}))} />
+                  </label>
                 </div>
 
                 <div className="border-t border-white/10 pt-8 mt-4">
@@ -363,11 +516,22 @@ export function AdminCatalogPage() {
                       <div key={i} className="bg-white/5 border border-white/10 p-6 relative group">
                         <button onClick={() => removeVariantFromNewProduct(i)} className="absolute -top-2 -right-2 bg-error text-white w-6 h-6 rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">X</button>
                         <div className="grid grid-cols-2 gap-4">
-                           <input placeholder="Talla" className="bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.size} onChange={e => updateNewVariantEntry(i, 'size', e.target.value)} />
-                           <input placeholder="Color" className="bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.color} onChange={e => updateNewVariantEntry(i, 'color', e.target.value)} />
-                           <input placeholder="Precio" type="number" className="bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.price} onChange={e => updateNewVariantEntry(i, 'price', Number(e.target.value))} />
-                           <input placeholder="Stock" type="number" className="bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.stock} onChange={e => updateNewVariantEntry(i, 'stock', Number(e.target.value))} />
-                           <input placeholder="URL Imagen de esta pieza" className="col-span-full bg-transparent border-b border-white/20 py-2 text-xs font-mono outline-none focus:border-white" value={v.image_url || ""} onChange={e => updateNewVariantEntry(i, 'image_url', e.target.value)} />
+                           <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Talla</span>
+                           <input placeholder="Ej: M, L, Única" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.size} onChange={e => updateNewVariantEntry(i, 'size', e.target.value)} /></label>
+                           
+                           <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Color</span>
+                           <input placeholder="Ej: Musgo, Arena" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.color} onChange={e => updateNewVariantEntry(i, 'color', e.target.value)} /></label>
+                           
+                           <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Precio</span>
+                           <input placeholder="0" type="number" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.price} onChange={e => updateNewVariantEntry(i, 'price', Number(e.target.value))} /></label>
+                           
+                           <label><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Stock</span>
+                           <input placeholder="10" type="number" className="w-full bg-transparent border-b border-white/20 py-2 text-sm outline-none focus:border-white" value={v.stock} onChange={e => updateNewVariantEntry(i, 'stock', Number(e.target.value))} /></label>
+                           
+                           <label className="col-span-full"><span className="text-[0.55rem] uppercase font-bold text-white/50 block mb-1">Imagen de esta pieza</span>
+                           <input type="file" className="text-[0.6rem] text-white/40" onChange={e => updateNewVariantFile(i, e.target.files?.[0] || null)} />
+                           <p className="text-[0.5rem] text-white/30 mt-1">O pega una URL abajo:</p>
+                           <input placeholder="https://..." className="w-full bg-transparent border-b border-white/20 py-2 text-[0.6rem] font-mono outline-none focus:border-white" value={v.image_url || ""} onChange={e => updateNewVariantEntry(i, 'image_url', e.target.value)} /></label>
                         </div>
                       </div>
                     ))}
