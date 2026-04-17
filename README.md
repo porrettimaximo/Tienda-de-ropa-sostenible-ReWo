@@ -8,12 +8,12 @@
 
 El proyecto está estructurado como un **Monorepo** moderno que separa claramente las responsabilidades:
 
-### 1. Frontend (`apps/web`)
+### 1. Frontend (`frontend`)
 *   **Tecnologías:** React 18, Vite, TypeScript, Tailwind CSS.
 *   **Patrón:** Component-based Architecture con hooks personalizados para gestión de estado (Carrito, Autenticación).
 *   **Características:** Mobile-first, 100% responsive, soporte PWA, animaciones fluidas y diseño orientado a conversión.
 
-### 2. Backend (`apps/api`)
+### 2. Backend (`backend`)
 *   **Tecnologías:** FastAPI (Python), Pydantic, SQLAlchemy/PostgreSQL (vía Supabase).
 *   **Arquitectura:** Layered Architecture (Routers -> Services -> Repositories).
 *   **Seguridad:** Autenticación JWT y control de acceso basado en roles (Admin/Client).
@@ -41,13 +41,13 @@ El proyecto está estructurado como un **Monorepo** moderno que separa clarament
 
 2.  **Instalar dependencias del Backend:**
     ```bash
-    cd apps/api
+    cd backend
     pip install -r requirements.txt
     ```
 
 3.  **Instalar dependencias del Frontend:**
     ```bash
-    cd apps/web
+    cd frontend
     npm install
     ```
 
