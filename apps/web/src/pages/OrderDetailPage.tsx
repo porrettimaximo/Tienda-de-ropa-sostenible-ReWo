@@ -42,6 +42,11 @@ export function OrderDetailPage() {
               <h3 className="mt-2 font-headline text-3xl font-black uppercase tracking-tighter">
                 {order.totalLabel}
               </h3>
+              {order.discountTotalLabel && (
+                <p className="mt-3 text-xs font-bold uppercase tracking-widest text-secondary">
+                  Promo: {order.promotionLabel || "Descuento aplicado"} (-{order.discountTotalLabel})
+                </p>
+              )}
             </div>
             <div className="text-left md:text-right">
               <p className="text-lg font-black">{order.paymentMethod ?? "Pago registrado"}</p>

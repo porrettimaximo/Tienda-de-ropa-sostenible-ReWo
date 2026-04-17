@@ -33,6 +33,16 @@ export function CombosPage() {
     }
   };
 
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <main className="px-5 py-16 md:px-8 lg:px-12">
       <header className="mx-auto mb-20 max-w-4xl text-center">
@@ -76,6 +86,11 @@ export function CombosPage() {
                   {promo.minItems > 1 && (
                     <span className="border border-outline/20 px-3 py-1 text-[0.6rem] font-bold uppercase tracking-widest text-on-surface-variant">
                       {promo.minItems}+ Prendas
+                    </span>
+                  )}
+                  {promo.endsAt && (
+                    <span className="border border-error/20 bg-error/5 px-3 py-1 text-[0.6rem] font-bold uppercase tracking-widest text-error">
+                      Vence: {formatDate(promo.endsAt)}
                     </span>
                   )}
                 </div>

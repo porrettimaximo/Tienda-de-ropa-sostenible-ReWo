@@ -26,7 +26,7 @@ def apply_combo_promotion(
 
     if subtotal < min_subtotal:
         return None
-    if len(set(product_slugs)) < min_distinct_products:
+    if len(product_slugs) < min_distinct_products:
         return None
 
     discount_total = min(discount_amount, subtotal)
@@ -84,10 +84,10 @@ def apply_best_promotion(
 
         candidate: AppliedPromotion | None = None
         
-        # All promotions now check min_subtotal and min_items (variety of slugs)
+        # All promotions now check min_subtotal and min_items (total items)
         if subtotal < min_subtotal:
             continue
-        if len(set(product_slugs)) < min_items:
+        if len(product_slugs) < min_items:
             continue
 
         if promo_type == "fixed":

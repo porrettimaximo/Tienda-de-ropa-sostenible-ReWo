@@ -7,6 +7,7 @@ import {
   submitCheckout,
   getPromotions,
   calculateBestPromotion,
+  getCustomerAccount,
   type Promotion
 } from "../lib/api";
 
@@ -34,6 +35,7 @@ export function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("Tarjeta");
   const [notes, setNotes] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
+  const [availablePoints, setAvailablePoints] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<{
@@ -65,6 +67,15 @@ export function CheckoutPage() {
     );
   
   const totalAfterPromo = Math.max(0, subtotal - estimatedPromotionDiscount);
+  
+  useEffect(() => {
+    if (isLoggedIn) {
+      getCustomerAccount()
+        .then(data => setAvailablePoints(data.ecoPoints))
+        .catch(() => setAvailablePoints(0));
+    }
+  }, [isLoggedIn]);
+
   const redeemablePoints = redeemPoints > 0 ? Math.floor(redeemPoints / 500) * 500 : 0;
   const loyaltyDiscountPreview = redeemablePoints > 0 ? Math.floor(redeemablePoints / 500) * 100 : 0;
   const maxRedeemPointsByTotal = Math.floor(totalAfterPromo / 100) * 500;
@@ -410,7 +421,50 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {!isLoggedIn ? (
+          {isLoggedIn && availablePoints >= 500 ? (
+            <div className="border border-outline-variant/30 bg-white p-6">
+              <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">
+                Canjear Puntos Eco
+              </h2>
+              <div className="mt-6">
+                <p className="text-sm text-on-surface-variant">
+                  Tienes <span className="font-bold text-inverse-surface">{availablePoints}</span> puntos disponibles. 
+                  Puedes usarlos en bloques de 500 para obtener descuentos directos.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {[500, 1000, 1500, 2000, 2500, 3000].map(pts => {
+                    const discount = (pts / 500) * 100;
+                    const isDisabled = pts > availablePoints || discount > totalAfterPromo;
+                    
+                    if (pts > availablePoints && pts > 500) return null; // Solo mostrar lo que puede alcanzar o el primer bloque
+
+                    return (
+                      <button
+                        key={pts}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setRedeemPoints(redeemPoints === pts ? 0 : pts)}
+                        className={`border px-6 py-4 text-[0.65rem] font-black uppercase tracking-[0.2em] transition-all ${
+                          redeemPoints === pts 
+                            ? "bg-inverse-surface text-surface border-inverse-surface" 
+                            : isDisabled 
+                              ? "opacity-30 border-outline/30 cursor-not-allowed" 
+                              : "border-outline/30 hover:border-inverse-surface bg-white"
+                        }`}
+                      >
+                        {pts} pts (-${discount} MXN)
+                      </button>
+                    )
+                  })}
+                </div>
+                {redeemPoints > 0 && (
+                  <p className="mt-4 text-[0.65rem] font-bold uppercase tracking-widest text-secondary">
+                    Descuento aplicado: ${effectiveLoyaltyDiscount} MXN
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : !isLoggedIn ? (
             <div className="border border-outline-variant/30 bg-[#f2f4f4] p-6">
               <p className="text-[0.7rem] font-black uppercase tracking-[0.3em] text-tertiary">
                 Beneficios de crear cuenta

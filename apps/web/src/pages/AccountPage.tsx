@@ -9,7 +9,7 @@ export function AccountPage() {
   const [accountSummary, setAccountSummary] = useState<any>(null);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("online");
 
   useEffect(() => {
     let active = true;
@@ -130,14 +130,14 @@ export function AccountPage() {
               <select
                 className="border border-outline-variant/30 px-4 py-2 text-sm"
                 onChange={(e) => setFilter(e.target.value)}
+                value={filter}
               >
-                <option value="all">Todos</option>
                 <option value="online">Online</option>
                 <option value="store">Tienda</option>
               </select>
             </div>
 
-            <div className="mt-8 space-y-5 max-h-[700px] overflow-y-auto pr-2">
+            <div className="mt-8 space-y-5 max-h-[480px] overflow-y-auto pr-2">
               {filteredOrders.length === 0 ? (
                 <div className="border border-dashed border-outline/40 px-5 py-10 text-center">
                   <p className="text-sm text-on-surface-variant">

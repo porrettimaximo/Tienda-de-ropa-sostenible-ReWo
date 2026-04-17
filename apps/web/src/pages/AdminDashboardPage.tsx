@@ -8,7 +8,7 @@ export function AdminDashboardPage() {
   const [adminSummary, setAdminSummary] = useState<typeof fallbackAdminSummary | null>(null);
   const [salesReport, setSalesReport] = useState<SalesReportRow[] | null>(null);
   const [kpis, setKpis] = useState<SalesKpis | null>(null);
-  const [kpiChannel, setKpiChannel] = useState<"" | "online" | "store">("");
+  const [kpiChannel, setKpiChannel] = useState<"online" | "store">("online");
   const [kpiStartDate, setKpiStartDate] = useState("");
   const [kpiEndDate, setKpiEndDate] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -185,10 +185,9 @@ export function AdminDashboardPage() {
               <label className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Canal</label>
               <select
                 className="border border-outline/30 bg-white px-4 py-3 text-sm"
-                onChange={(event) => setKpiChannel(event.target.value as "" | "online" | "store")}
+                onChange={(event) => setKpiChannel(event.target.value as "online" | "store")}
                 value={kpiChannel}
               >
-                <option value="">Todos</option>
                 <option value="online">Online</option>
                 <option value="store">Tienda</option>
               </select>

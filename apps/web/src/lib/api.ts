@@ -324,6 +324,8 @@ export type CustomerOrder = {
   shippingCity?: string | null;
   shippingPostalCode?: string | null;
   shippingPhone?: string | null;
+  promotionLabel?: string | null;
+  discountTotalLabel?: string | null;
   items: Array<{
     productSlug: string;
     productName: string;
@@ -661,6 +663,10 @@ export async function getCustomerOrders(customerId = "cus-maria-fernandez"): Pro
       shippingCity: order.shipping_city,
       shippingPostalCode: order.shipping_postal_code,
       shippingPhone: order.shipping_phone,
+      promotionLabel: order.promotion_label,
+      promotionDiscountTotal: order.promotion_discount_total,
+      loyaltyDiscountTotal: order.loyalty_discount_total,
+      discountTotalLabel: order.discount_total ? formatCurrency(order.discount_total) : undefined,
       items: order.items.map((item) => ({
         productSlug: item.product_slug,
         productName: item.product_name,
@@ -695,6 +701,10 @@ export async function getCustomerOrder(orderId: string): Promise<CustomerOrder |
       shippingCity: data.shipping_city,
       shippingPostalCode: data.shipping_postal_code,
       shippingPhone: data.shipping_phone,
+      promotionLabel: data.promotion_label,
+      promotionDiscountTotal: data.promotion_discount_total,
+      loyaltyDiscountTotal: data.loyalty_discount_total,
+      discountTotalLabel: data.discount_total ? formatCurrency(data.discount_total) : undefined,
       items: data.items.map((item) => ({
         productSlug: item.product_slug,
         productName: item.product_name,
@@ -875,10 +885,10 @@ export function calculateBestPromotion(
     if (promo.startsAt && new Date(promo.startsAt) > now) continue;
     if (promo.endsAt && new Date(promo.endsAt) < now) continue;
 
-    // Check shared conditions: min subtotal and min distinct products
-    const distinctProducts = new Set(items.map((item) => item.productSlug)).size;
+    // Check shared conditions: min subtotal and total items
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     if (subtotal < (promo.minSubtotal || 0)) continue;
-    if (distinctProducts < (promo.minItems || 1)) continue;
+    if (totalQuantity < (promo.minItems || 1)) continue;
 
     let discount = 0;
     switch (promo.promotionType) {
